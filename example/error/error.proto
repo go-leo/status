@@ -1,0 +1,10 @@
+syntax = "proto3";
+package status.example.error;
+option go_package = "github.com/go-leo/example/error;error";
+
+import "status/annotations.proto";
+
+enum UserStatus {
+  option (status.default_rpc_code) = OUT_OF_RANGE;
+  USER_NOT_FOUND = 0 [(status.code) = 10000, (status.message) = "用户不存在"];
+}

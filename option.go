@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	httpstatus "google.golang.org/genproto/googleapis/rpc/http"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -27,6 +26,16 @@ func Message(format string, a ...any) Option {
 	}
 }
 
+// Details adds additional details to the Status as protocol buffer messages.
+func Details(details ...proto.Message) Option {
+	return func(st *sampleStatus) {
+		for _, item := range details {
+			value, _ := anypb.New(item)
+			st.err.GrpcStatus.Details = append(st.err.GrpcStatus.Details, value)
+		}
+	}
+}
+
 // Header sets the http header info.
 func Header(header http.Header) Option {
 	return func(st *sampleStatus) {
@@ -36,12 +45,6 @@ func Header(header http.Header) Option {
 				st.err.HttpStatus.Headers = append(st.err.HttpStatus.Headers, item)
 			}
 		}
-	}
-}
-
-func Body(body proto.Message) Option {
-	return func(st *sampleStatus) {
-		st.err.HttpStatus.Body, _ = protojson.Marshal(body)
 	}
 }
 
@@ -169,16 +172,6 @@ func LocalizedMessage(locale string, message string) Option {
 		st.err.Detail.LocalizedMessage = &errdetails.LocalizedMessage{
 			Locale:  locale,
 			Message: message,
-		}
-	}
-}
-
-// Details adds additional details to the Status as protocol buffer messages.
-func Details(details ...proto.Message) Option {
-	return func(st *sampleStatus) {
-		for _, item := range details {
-			value, _ := anypb.New(item)
-			st.err.GrpcStatus.Details = append(st.err.GrpcStatus.Details, value)
 		}
 	}
 }

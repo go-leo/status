@@ -93,60 +93,6 @@ type sampleStatus struct {
 	err *Error
 }
 
-func newStatus(code codes.Code) *sampleStatus {
-	var statusCode int
-	switch code {
-	case codes.OK:
-		statusCode = http.StatusOK
-	case codes.Canceled:
-		statusCode = 499
-	case codes.Unknown:
-		statusCode = http.StatusInternalServerError
-	case codes.InvalidArgument:
-		statusCode = http.StatusBadRequest
-	case codes.DeadlineExceeded:
-		statusCode = http.StatusGatewayTimeout
-	case codes.NotFound:
-		statusCode = http.StatusNotFound
-	case codes.AlreadyExists:
-		statusCode = http.StatusConflict
-	case codes.PermissionDenied:
-		statusCode = http.StatusForbidden
-	case codes.ResourceExhausted:
-		statusCode = http.StatusTooManyRequests
-	case codes.FailedPrecondition:
-		statusCode = http.StatusBadRequest
-	case codes.Aborted:
-		statusCode = http.StatusConflict
-	case codes.OutOfRange:
-		statusCode = http.StatusBadRequest
-	case codes.Unimplemented:
-		statusCode = http.StatusNotImplemented
-	case codes.Internal:
-		statusCode = http.StatusInternalServerError
-	case codes.Unavailable:
-		statusCode = http.StatusServiceUnavailable
-	case codes.DataLoss:
-		statusCode = http.StatusInternalServerError
-	case codes.Unauthenticated:
-		statusCode = http.StatusUnauthorized
-	default:
-		statusCode = http.StatusInternalServerError
-	}
-	st := &sampleStatus{
-		err: &Error{
-			HttpStatus: &httpstatus.HttpResponse{
-				Status: int32(statusCode),
-			},
-			GrpcStatus: &rpcstatus.Status{
-				Code: int32(codes.ResourceExhausted),
-			},
-		},
-	}
-	return st
-}
-
-// Status wraps a pointer of a Status proto.
 func (st *sampleStatus) Error() string {
 	return fmt.Sprintf("status: code = %s, status-code = %d, desc = %s", st.Code(), st.StatusCode(), st.Message())
 }
@@ -266,4 +212,57 @@ func (st *sampleStatus) LocalizedMessage() *errdetails.LocalizedMessage {
 
 func (st *sampleStatus) Details() []proto.Message {
 	return st.err.Details()
+}
+
+func newStatus(code codes.Code) *sampleStatus {
+	var statusCode int
+	switch code {
+	case codes.OK:
+		statusCode = http.StatusOK
+	case codes.Canceled:
+		statusCode = 499
+	case codes.Unknown:
+		statusCode = http.StatusInternalServerError
+	case codes.InvalidArgument:
+		statusCode = http.StatusBadRequest
+	case codes.DeadlineExceeded:
+		statusCode = http.StatusGatewayTimeout
+	case codes.NotFound:
+		statusCode = http.StatusNotFound
+	case codes.AlreadyExists:
+		statusCode = http.StatusConflict
+	case codes.PermissionDenied:
+		statusCode = http.StatusForbidden
+	case codes.ResourceExhausted:
+		statusCode = http.StatusTooManyRequests
+	case codes.FailedPrecondition:
+		statusCode = http.StatusBadRequest
+	case codes.Aborted:
+		statusCode = http.StatusConflict
+	case codes.OutOfRange:
+		statusCode = http.StatusBadRequest
+	case codes.Unimplemented:
+		statusCode = http.StatusNotImplemented
+	case codes.Internal:
+		statusCode = http.StatusInternalServerError
+	case codes.Unavailable:
+		statusCode = http.StatusServiceUnavailable
+	case codes.DataLoss:
+		statusCode = http.StatusInternalServerError
+	case codes.Unauthenticated:
+		statusCode = http.StatusUnauthorized
+	default:
+		statusCode = http.StatusInternalServerError
+	}
+	st := &sampleStatus{
+		err: &Error{
+			HttpStatus: &httpstatus.HttpResponse{
+				Status: int32(statusCode),
+			},
+			GrpcStatus: &rpcstatus.Status{
+				Code: int32(codes.ResourceExhausted),
+			},
+		},
+	}
+	return st
 }
