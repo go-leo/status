@@ -135,8 +135,6 @@ func newStatus(code codes.Code) *sampleStatus {
 	}
 	st := &sampleStatus{
 		err: &Error{
-			Cause:  nil,
-			Detail: &Detail{},
 			HttpStatus: &httpstatus.HttpResponse{
 				Status: int32(statusCode),
 			},
@@ -175,20 +173,6 @@ func (st *sampleStatus) Message() string {
 		return ""
 	}
 	return st.err.Message()
-}
-
-func (st *sampleStatus) causeMessage(causeAny *Cause) string {
-	if causeProto := causeAny.GetError(); causeProto != nil {
-		causeErr, err := causeProto.UnmarshalNew()
-		if err != nil {
-			panic(err)
-		}
-		return causeErr.(error).Error()
-	}
-	if causeMsg := causeAny.GetMessage(); causeMsg != nil {
-		return causeMsg.GetValue()
-	}
-	return ""
 }
 
 func (st *sampleStatus) GRPCStatus() *grpcstatus.Status {
