@@ -10,9 +10,7 @@ import (
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"net/http"
 	"slices"
 )
@@ -152,17 +150,7 @@ func newStatus(code codes.Code) *sampleStatus {
 
 // Status wraps a pointer of a Status proto.
 func (st *sampleStatus) Error() string {
-	grpcStatus := st.err.GetGrpcStatus()
-	code := codes.Code(grpcStatus.GetCode())
-	var message string
-	if causeAny := st.err.GetCause(); causeAny != nil {
-		message = st.causeMessage(causeAny)
-	} else if errorInfo := st.err.GetDetail().GetErrorInfo(); errorInfo != nil {
-		message = errorInfo.GetReason()
-	} else {
-		message = grpcStatus.GetMessage()
-	}
-	return fmt.Sprintf("statusx: code = %s, desc = %s", code, message)
+	return fmt.Sprintf("status: code = %s, status-code = %d, desc = %s", st.Code(), st.StatusCode(), st.Message())
 }
 
 func (st *sampleStatus) With(opts ...Option) Status {
@@ -186,7 +174,7 @@ func (st *sampleStatus) Message() string {
 	if st == nil || st.err == nil {
 		return ""
 	}
-	return st.err.GetGrpcStatus().GetMessage()
+	return st.err.Message()
 }
 
 func (st *sampleStatus) causeMessage(causeAny *Cause) string {
@@ -205,13 +193,13 @@ func (st *sampleStatus) causeMessage(causeAny *Cause) string {
 
 func (st *sampleStatus) GRPCStatus() *grpcstatus.Status {
 	grpcStatus := protox.Clone(st.err.GetGrpcStatus())
-	grpcStatus.Details = st.AppendDetails(grpcStatus.Details)
+	grpcStatus.Details = st.err.AppendDetails(grpcStatus.Details)
 	return grpcstatus.FromProto(grpcStatus)
 }
 
 func (st *sampleStatus) HTTPStatus() *httpstatus.HttpResponse {
 	httpStatus := protox.Clone(st.err.GetHttpStatus())
-	httpStatus.Headers = st.AppendHeader(httpStatus.Headers)
+	httpStatus.Headers = st.err.AppendHeader(httpStatus.Headers)
 	return httpStatus
 }
 
@@ -241,7 +229,7 @@ func (st *sampleStatus) StatusCode() int {
 
 func (st *sampleStatus) Headers() http.Header {
 	header := make(http.Header)
-	headers := st.AppendHeader(slices.Clone(st.err.GetHttpStatus().GetHeaders()))
+	headers := st.err.AppendHeader(slices.Clone(st.err.GetHttpStatus().GetHeaders()))
 	for _, item := range headers {
 		header.Add(item.GetKey(), item.GetValue())
 	}
@@ -293,98 +281,5 @@ func (st *sampleStatus) LocalizedMessage() *errdetails.LocalizedMessage {
 }
 
 func (st *sampleStatus) Details() []proto.Message {
-	details := st.err.GetGrpcStatus().GetDetails()
-	messages := make([]proto.Message, 0, len(details))
-	for _, anyDetail := range details {
-		detail, err := anyDetail.UnmarshalNew()
-		if err != nil {
-			panic(err)
-		}
-		messages = append(messages, detail)
-	}
-	return messages
-}
-
-func (st *sampleStatus) AppendDetails(details []*anypb.Any) []*anypb.Any {
-	// add cause info to details
-	if st.err.GetCause() != nil {
-		cause, err := anypb.New(st.err.GetCause())
-		if err != nil {
-			panic(err)
-		}
-		details = append(details, cause)
-	}
-
-	// add detail info to details
-	if st.err.GetDetail() != nil {
-		detail, err := anypb.New(st.err.GetDetail())
-		if err != nil {
-			panic(err)
-		}
-		details = append(details, detail)
-	}
-
-	// add http status info to details
-	if st.err.GetHttpStatus() != nil {
-		httpStatus, err := anypb.New(st.err.GetHttpStatus())
-		if err != nil {
-			panic(err)
-		}
-		details = append(details, httpStatus)
-	}
-	return details
-}
-
-func (st *sampleStatus) AppendHeader(headers []*httpstatus.HttpHeader) []*httpstatus.HttpHeader {
-	// add cause info to header
-	if st.err.GetCause() != nil {
-		info, err := anypb.New(st.err.GetCause())
-		if err != nil {
-			panic(err)
-		}
-		data, err := protojson.Marshal(info)
-		if err != nil {
-			panic(err)
-		}
-		item := &httpstatus.HttpHeader{
-			Key:   kStatusCauseKey,
-			Value: string(data),
-		}
-		headers = append(headers, item)
-	}
-
-	// add detail info to header
-	if st.err.GetDetail() != nil {
-		info, err := anypb.New(st.err.GetDetail())
-		if err != nil {
-			panic(err)
-		}
-		data, err := protojson.Marshal(info)
-		if err != nil {
-			panic(err)
-		}
-		item := &httpstatus.HttpHeader{
-			Key:   kStatusDetailKey,
-			Value: string(data),
-		}
-		headers = append(headers, item)
-	}
-
-	// add grpc status info to header
-	if st.err.GetGrpcStatus() != nil {
-		info, err := anypb.New(st.err.GetGrpcStatus())
-		if err != nil {
-			panic(err)
-		}
-		data, err := protojson.Marshal(info)
-		if err != nil {
-			panic(err)
-		}
-		item := &httpstatus.HttpHeader{
-			Key:   kStatusGrpcKey,
-			Value: string(data),
-		}
-		headers = append(headers, item)
-	}
-	return headers
+	return st.err.Details()
 }

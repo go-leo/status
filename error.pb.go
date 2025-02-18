@@ -101,6 +101,8 @@ func (x *Error) GetGrpcStatus() *status.Status {
 	return nil
 }
 
+
+
 type Detail struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

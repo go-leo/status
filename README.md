@@ -1,6 +1,3 @@
-# Leo
-Leo 是一个基于 [go-kit](https://github.com/go-kit/kit) 的微服务工具，简化了基于go-kit开发的繁琐的工作。
+# Status
 
-# 组件
-* [Api](doc/api.md)
-* [配置](doc/config.md)
+status 是一个微服务常用的状态码管理工具，
