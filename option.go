@@ -2,12 +2,12 @@ package status
 
 import (
 	"fmt"
-	interstatusx "github.com/go-leo/status/internal/status"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	httpstatus "google.golang.org/genproto/googleapis/rpc/http"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+	"net/http"
 )
 
 type Option func(st *sampleStatus)
@@ -20,14 +20,14 @@ func Wrap(err error) Option {
 		}
 		causeProto, ok := err.(proto.Message)
 		if !ok {
-			st.err.Cause = &interstatusx.Cause{Cause: &interstatusx.Cause_Message{Message: wrapperspb.String(fmt.Sprintf("%+v", err))}}
+			st.err.Cause = &Cause{Cause: &Cause_Message{Message: wrapperspb.String(fmt.Sprintf("%+v", err))}}
 			return
 		}
 		causeAny, err := anypb.New(causeProto)
 		if err != nil {
 			panic(err)
 		}
-		st.err.Cause = &interstatusx.Cause{Cause: &interstatusx.Cause_Error{Error: causeAny}}
+		st.err.Cause = &Cause{Cause: &Cause_Error{Error: causeAny}}
 	}
 }
 
@@ -38,6 +38,18 @@ func Message(format string, a ...any) Option {
 			return
 		}
 		st.err.GrpcStatus.Message = fmt.Sprintf(format, a...)
+	}
+}
+
+// Header sets the http header info.
+func Header(header http.Header) Option {
+	return func(st *sampleStatus) {
+		for key, values := range header {
+			for _, value := range values {
+				item := &httpstatus.HttpHeader{Key: key, Value: value}
+				st.err.HttpStatus.Headers = append(st.err.HttpStatus.Headers, item)
+			}
+		}
 	}
 }
 
@@ -59,7 +71,7 @@ func HttpBody(info *wrapperspb.BytesValue) Option {
 func ErrorInfo(info *errdetails.ErrorInfo) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
-			st.err.Detail = &interstatusx.Detail{}
+			st.err.Detail = &Detail{}
 		}
 		st.err.Detail.ErrorInfo = info
 	}
@@ -69,7 +81,7 @@ func ErrorInfo(info *errdetails.ErrorInfo) Option {
 func RetryInfo(info *errdetails.RetryInfo) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
-			st.err.Detail = &interstatusx.Detail{}
+			st.err.Detail = &Detail{}
 		}
 		st.err.Detail.RetryInfo = info
 	}
@@ -79,7 +91,7 @@ func RetryInfo(info *errdetails.RetryInfo) Option {
 func DebugInfo(info *errdetails.DebugInfo) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
-			st.err.Detail = &interstatusx.Detail{}
+			st.err.Detail = &Detail{}
 		}
 		st.err.Detail.DebugInfo = info
 	}
@@ -89,7 +101,7 @@ func DebugInfo(info *errdetails.DebugInfo) Option {
 func QuotaFailure(info *errdetails.QuotaFailure) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
-			st.err.Detail = &interstatusx.Detail{}
+			st.err.Detail = &Detail{}
 		}
 		st.err.Detail.QuotaFailure = info
 	}
@@ -99,7 +111,7 @@ func QuotaFailure(info *errdetails.QuotaFailure) Option {
 func PreconditionFailure(info *errdetails.PreconditionFailure) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
-			st.err.Detail = &interstatusx.Detail{}
+			st.err.Detail = &Detail{}
 		}
 		st.err.Detail.PreconditionFailure = info
 	}
@@ -109,7 +121,7 @@ func PreconditionFailure(info *errdetails.PreconditionFailure) Option {
 func BadRequest(info *errdetails.BadRequest) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
-			st.err.Detail = &interstatusx.Detail{}
+			st.err.Detail = &Detail{}
 		}
 		st.err.Detail.BadRequest = info
 	}
@@ -119,7 +131,7 @@ func BadRequest(info *errdetails.BadRequest) Option {
 func RequestInfo(info *errdetails.RequestInfo) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
-			st.err.Detail = &interstatusx.Detail{}
+			st.err.Detail = &Detail{}
 		}
 		st.err.Detail.RequestInfo = info
 	}
@@ -129,7 +141,7 @@ func RequestInfo(info *errdetails.RequestInfo) Option {
 func ResourceInfo(info *errdetails.ResourceInfo) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
-			st.err.Detail = &interstatusx.Detail{}
+			st.err.Detail = &Detail{}
 		}
 		st.err.Detail.ResourceInfo = info
 	}
@@ -139,7 +151,7 @@ func ResourceInfo(info *errdetails.ResourceInfo) Option {
 func Help(info *errdetails.Help) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
-			st.err.Detail = &interstatusx.Detail{}
+			st.err.Detail = &Detail{}
 		}
 		st.err.Detail.Help = info
 	}
@@ -149,7 +161,7 @@ func Help(info *errdetails.Help) Option {
 func LocalizedMessage(info *errdetails.LocalizedMessage) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
-			st.err.Detail = &interstatusx.Detail{}
+			st.err.Detail = &Detail{}
 		}
 		st.err.Detail.LocalizedMessage = info
 	}
@@ -160,7 +172,7 @@ func Details(details ...proto.Message) Option {
 	return func(st *sampleStatus) {
 		for _, detail := range details {
 			switch item := detail.(type) {
-			case *interstatusx.Cause:
+			case *Cause:
 				st.err.Cause = item
 			case *wrapperspb.StringValue:
 				Message(item.GetValue())(st)

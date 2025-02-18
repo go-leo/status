@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-leo/gox/protox"
-	interstatusx "github.com/go-leo/status/internal/status"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	httpstatus "google.golang.org/genproto/googleapis/rpc/http"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
@@ -48,6 +47,9 @@ type Status interface {
 	// It does not compare the details.
 	Equals(target error) bool
 
+	// Headers gets the http header info.
+	Headers() http.Header
+
 	// HttpHeader gets the http header info.
 	HttpHeader() []*httpstatus.HttpHeader
 
@@ -89,7 +91,7 @@ type Status interface {
 }
 
 type sampleStatus struct {
-	err *interstatusx.Error
+	err *Error
 }
 
 func newStatus(code codes.Code) *sampleStatus {
@@ -133,9 +135,9 @@ func newStatus(code codes.Code) *sampleStatus {
 		statusCode = http.StatusInternalServerError
 	}
 	st := &sampleStatus{
-		err: &interstatusx.Error{
+		err: &Error{
 			Cause:  nil,
-			Detail: &interstatusx.Detail{},
+			Detail: &Detail{},
 			HttpStatus: &httpstatus.HttpResponse{
 				Status: int32(statusCode),
 			},
@@ -186,7 +188,7 @@ func (st *sampleStatus) Message() string {
 	return st.err.GetGrpcStatus().GetMessage()
 }
 
-func (st *sampleStatus) causeMessage(causeAny *interstatusx.Cause) string {
+func (st *sampleStatus) causeMessage(causeAny *Cause) string {
 	if causeProto := causeAny.GetError(); causeProto != nil {
 		causeErr, _ := causeProto.UnmarshalNew()
 		return causeErr.(error).Error()
@@ -199,7 +201,7 @@ func (st *sampleStatus) causeMessage(causeAny *interstatusx.Cause) string {
 
 func (st *sampleStatus) GRPCStatus() *grpcstatus.Status {
 	grpcStatus := st.err.GetGrpcStatus()
-	// return new grpc status
+	// return new grpc statu
 	grpcProto := &rpcstatus.Status{
 		Code:    grpcStatus.GetCode(),
 		Message: grpcStatus.GetMessage(),
@@ -286,8 +288,17 @@ func (st *sampleStatus) Unwrap() error {
 	return causeProto.(error)
 }
 
+func (st *sampleStatus) Headers() http.Header {
+	header := make(http.Header)
+	headers := st.err.GetHttpStatus().GetHeaders()
+	for _, item := range headers {
+		header.Add(item.GetKey(), item.GetValue())
+	}
+	return header
+}
+
 func (st *sampleStatus) HttpHeader() []*httpstatus.HttpHeader {
-	return protox.CloneSlice(st.err.GetHttpStatus().GetHeaders())
+	return st.err.GetHttpStatus().GetHeaders()
 }
 
 func (st *sampleStatus) HttpBody() *wrapperspb.BytesValue {
@@ -295,43 +306,43 @@ func (st *sampleStatus) HttpBody() *wrapperspb.BytesValue {
 }
 
 func (st *sampleStatus) ErrorInfo() *errdetails.ErrorInfo {
-	return protox.Clone(st.err.GetDetail().GetErrorInfo())
+	return st.err.GetDetail().GetErrorInfo()
 }
 
 func (st *sampleStatus) RetryInfo() *errdetails.RetryInfo {
-	return protox.Clone(st.err.GetDetail().GetRetryInfo())
+	return st.err.GetDetail().GetRetryInfo()
 }
 
 func (st *sampleStatus) DebugInfo() *errdetails.DebugInfo {
-	return protox.Clone(st.err.GetDetail().GetDebugInfo())
+	return st.err.GetDetail().GetDebugInfo()
 }
 
 func (st *sampleStatus) QuotaFailure() *errdetails.QuotaFailure {
-	return protox.Clone(st.err.GetDetail().GetQuotaFailure())
+	return st.err.GetDetail().GetQuotaFailure()
 }
 
 func (st *sampleStatus) PreconditionFailure() *errdetails.PreconditionFailure {
-	return protox.Clone(st.err.GetDetail().GetPreconditionFailure())
+	return st.err.GetDetail().GetPreconditionFailure()
 }
 
 func (st *sampleStatus) BadRequest() *errdetails.BadRequest {
-	return protox.Clone(st.err.GetDetail().GetBadRequest())
+	return st.err.GetDetail().GetBadRequest()
 }
 
 func (st *sampleStatus) RequestInfo() *errdetails.RequestInfo {
-	return protox.Clone(st.err.GetDetail().GetRequestInfo())
+	return st.err.GetDetail().GetRequestInfo()
 }
 
 func (st *sampleStatus) ResourceInfo() *errdetails.ResourceInfo {
-	return protox.Clone(st.err.GetDetail().GetResourceInfo())
+	return st.err.GetDetail().GetResourceInfo()
 }
 
 func (st *sampleStatus) Help() *errdetails.Help {
-	return protox.Clone(st.err.GetDetail().GetHelp())
+	return st.err.GetDetail().GetHelp()
 }
 
 func (st *sampleStatus) LocalizedMessage() *errdetails.LocalizedMessage {
-	return protox.Clone(st.err.GetDetail().GetLocalizedMessage())
+	return st.err.GetDetail().GetLocalizedMessage()
 }
 
 func (st *sampleStatus) Details() []proto.Message {
