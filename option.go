@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	httpstatus "google.golang.org/genproto/googleapis/rpc/http"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"net/http"
+	"time"
 )
 
 type Option func(st *sampleStatus)
@@ -15,28 +17,12 @@ type Option func(st *sampleStatus)
 // Wrap wraps the cause error into the Status.
 func Wrap(err error) Option {
 	return func(st *sampleStatus) {
-		if err == nil {
-			return
-		}
-		causeProto, ok := err.(proto.Message)
-		if !ok {
-			st.err.Cause = &Cause{Cause: &Cause_Message{Message: wrapperspb.String(fmt.Sprintf("%+v", err))}}
-			return
-		}
-		causeAny, err := anypb.New(causeProto)
-		if err != nil {
-			panic(err)
-		}
-		st.err.Cause = &Cause{Cause: &Cause_Error{Error: causeAny}}
+		st.err.Cause = st.err.Cause.Wrap(err)
 	}
 }
 
 func Message(format string, a ...any) Option {
 	return func(st *sampleStatus) {
-		if len(a) <= 0 {
-			st.err.GrpcStatus.Message = format
-			return
-		}
 		st.err.GrpcStatus.Message = fmt.Sprintf(format, a...)
 	}
 }
@@ -53,160 +39,146 @@ func Header(header http.Header) Option {
 	}
 }
 
-// HttpHeader sets the http header info.
-func HttpHeader(infos ...*httpstatus.HttpHeader) Option {
+func Body(body proto.Message) Option {
 	return func(st *sampleStatus) {
-		st.err.HttpStatus.Headers = append(st.err.HttpStatus.Headers, infos...)
-	}
-}
-
-// HttpBody sets the http body.
-func HttpBody(info *wrapperspb.BytesValue) Option {
-	return func(st *sampleStatus) {
-		st.err.HttpStatus.Body = info.GetValue()
+		st.err.HttpStatus.Body, _ = protojson.Marshal(body)
 	}
 }
 
 // ErrorInfo sets the error info.
-func ErrorInfo(info *errdetails.ErrorInfo) Option {
+func ErrorInfo(reason string, domain string, metadata map[string]string) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
 			st.err.Detail = &Detail{}
 		}
-		st.err.Detail.ErrorInfo = info
+		st.err.Detail.ErrorInfo = &errdetails.ErrorInfo{
+			Reason:   reason,
+			Domain:   domain,
+			Metadata: metadata,
+		}
 	}
 }
 
 // RetryInfo sets the retry info.
-func RetryInfo(info *errdetails.RetryInfo) Option {
+func RetryInfo(retryDelay time.Duration) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
 			st.err.Detail = &Detail{}
 		}
-		st.err.Detail.RetryInfo = info
+		st.err.Detail.RetryInfo = &errdetails.RetryInfo{
+			RetryDelay: durationpb.New(retryDelay),
+		}
 	}
 }
 
 // DebugInfo sets the debug info.
-func DebugInfo(info *errdetails.DebugInfo) Option {
+func DebugInfo(stackEntries []string, detail string) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
 			st.err.Detail = &Detail{}
 		}
-		st.err.Detail.DebugInfo = info
+		st.err.Detail.DebugInfo = &errdetails.DebugInfo{
+			StackEntries: stackEntries,
+			Detail:       detail,
+		}
 	}
 }
 
 // QuotaFailure sets the quota failure info.
-func QuotaFailure(info *errdetails.QuotaFailure) Option {
+func QuotaFailure(violations []*errdetails.QuotaFailure_Violation) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
 			st.err.Detail = &Detail{}
 		}
-		st.err.Detail.QuotaFailure = info
+		st.err.Detail.QuotaFailure = &errdetails.QuotaFailure{
+			Violations: violations,
+		}
 	}
 }
 
 // PreconditionFailure sets the precondition failure info.
-func PreconditionFailure(info *errdetails.PreconditionFailure) Option {
+func PreconditionFailure(violations []*errdetails.PreconditionFailure_Violation) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
 			st.err.Detail = &Detail{}
 		}
-		st.err.Detail.PreconditionFailure = info
+		st.err.Detail.PreconditionFailure = &errdetails.PreconditionFailure{
+			Violations: violations,
+		}
 	}
 }
 
 // BadRequest sets the bad request info.
-func BadRequest(info *errdetails.BadRequest) Option {
+func BadRequest(violations []*errdetails.BadRequest_FieldViolation) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
 			st.err.Detail = &Detail{}
 		}
-		st.err.Detail.BadRequest = info
+		st.err.Detail.BadRequest = &errdetails.BadRequest{
+			FieldViolations: violations,
+		}
 	}
 }
 
 // RequestInfo sets the request info.
-func RequestInfo(info *errdetails.RequestInfo) Option {
+func RequestInfo(requestId string, servingData string) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
 			st.err.Detail = &Detail{}
 		}
-		st.err.Detail.RequestInfo = info
+		st.err.Detail.RequestInfo = &errdetails.RequestInfo{
+			RequestId:   requestId,
+			ServingData: servingData,
+		}
 	}
 }
 
 // ResourceInfo sets the resource info.
-func ResourceInfo(info *errdetails.ResourceInfo) Option {
+func ResourceInfo(resourceType string, resourceName string, owner string, description string) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
 			st.err.Detail = &Detail{}
 		}
-		st.err.Detail.ResourceInfo = info
+		st.err.Detail.ResourceInfo = &errdetails.ResourceInfo{
+			ResourceType: resourceType,
+			ResourceName: resourceName,
+			Owner:        owner,
+			Description:  description,
+		}
 	}
 }
 
 // Help sets the help info.
-func Help(info *errdetails.Help) Option {
+func Help(links []*errdetails.Help_Link) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
 			st.err.Detail = &Detail{}
 		}
-		st.err.Detail.Help = info
+		st.err.Detail.Help = &errdetails.Help{
+			Links: links,
+		}
 	}
 }
 
 // LocalizedMessage sets the localized message info.
-func LocalizedMessage(info *errdetails.LocalizedMessage) Option {
+func LocalizedMessage(locale string, message string) Option {
 	return func(st *sampleStatus) {
 		if st.err.Detail == nil {
 			st.err.Detail = &Detail{}
 		}
-		st.err.Detail.LocalizedMessage = info
+		st.err.Detail.LocalizedMessage = &errdetails.LocalizedMessage{
+			Locale:  locale,
+			Message: message,
+		}
 	}
 }
 
 // Details adds additional details to the Status as protocol buffer messages.
 func Details(details ...proto.Message) Option {
 	return func(st *sampleStatus) {
-		for _, detail := range details {
-			switch item := detail.(type) {
-			case *Cause:
-				st.err.Cause = item
-			case *wrapperspb.StringValue:
-				Message(item.GetValue())(st)
-			case *httpstatus.HttpHeader:
-				HttpHeader(item)(st)
-			case *wrapperspb.BytesValue:
-				HttpBody(item)(st)
-			case *errdetails.ErrorInfo:
-				ErrorInfo(item)(st)
-			case *errdetails.RetryInfo:
-				RetryInfo(item)(st)
-			case *errdetails.DebugInfo:
-				DebugInfo(item)(st)
-			case *errdetails.QuotaFailure:
-				QuotaFailure(item)(st)
-			case *errdetails.PreconditionFailure:
-				PreconditionFailure(item)(st)
-			case *errdetails.BadRequest:
-				BadRequest(item)(st)
-			case *errdetails.RequestInfo:
-				RequestInfo(item)(st)
-			case *errdetails.ResourceInfo:
-				ResourceInfo(item)(st)
-			case *errdetails.Help:
-				Help(item)(st)
-			case *errdetails.LocalizedMessage:
-				LocalizedMessage(item)(st)
-			default:
-				value, err := anypb.New(item)
-				if err != nil {
-					panic(err)
-				}
-				st.err.GrpcStatus.Details = append(st.err.GrpcStatus.Details, value)
-			}
+		for _, item := range details {
+			value, _ := anypb.New(item)
+			st.err.GrpcStatus.Details = append(st.err.GrpcStatus.Details, value)
 		}
 	}
 }

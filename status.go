@@ -1,6 +1,7 @@
 package status
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/go-leo/gox/protox"
@@ -9,10 +10,11 @@ import (
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 	"net/http"
+	"slices"
 )
 
 type Status interface {
@@ -31,13 +33,12 @@ type Status interface {
 	Unwrap() error
 
 	// GRPCStatus returns the gRPC Status.
+	// see: https://github.com/grpc/grpc-go/blame/8528f4387f276518050f2b71a9dee1e3fb19d924/status/status.go#L100
+	// type grpcstatus interface{ GRPCStatus() *Status }
 	GRPCStatus() *grpcstatus.Status
 
 	// HTTPStatus returns the HTTP Status.
 	HTTPStatus() *httpstatus.HttpResponse
-
-	// Proto return the gRPC and HTTP status protocol buffers.
-	Proto() (*rpcstatus.Status, *httpstatus.HttpResponse)
 
 	// Is implements future errors.Is functionality.
 	Is(target error) bool
@@ -47,46 +48,46 @@ type Status interface {
 	// It does not compare the details.
 	Equals(target error) bool
 
-	// Headers gets the http header info.
+	// StatusCode returns the http status code.
+	StatusCode() int
+
+	// Headers returns the http header info.
 	Headers() http.Header
 
-	// HttpHeader gets the http header info.
-	HttpHeader() []*httpstatus.HttpHeader
+	// Marshaler implements json.Marshaler.
+	json.Marshaler
 
-	// HttpBody gets the http body.
-	HttpBody() *wrapperspb.BytesValue
-
-	// ErrorInfo gets the error info.
+	// ErrorInfo returns the error info.
 	ErrorInfo() *errdetails.ErrorInfo
 
-	// RetryInfo gets the retry info.
+	// RetryInfo returns the retry info.
 	RetryInfo() *errdetails.RetryInfo
 
-	// DebugInfo gets the debug info.
+	// DebugInfo returns the debug info.
 	DebugInfo() *errdetails.DebugInfo
 
-	// QuotaFailure gets the quota failure info.
+	// QuotaFailure returns the quota failure info.
 	QuotaFailure() *errdetails.QuotaFailure
 
-	// PreconditionFailure gets the precondition failure info.
+	// PreconditionFailure returns the precondition failure info.
 	PreconditionFailure() *errdetails.PreconditionFailure
 
-	// BadRequest gets the bad request info.
+	// BadRequest returns the bad request info.
 	BadRequest() *errdetails.BadRequest
 
-	// RequestInfo gets the request info.
+	// RequestInfo returns the request info.
 	RequestInfo() *errdetails.RequestInfo
 
-	// ResourceInfo gets the resource info.
+	// ResourceInfo returns the resource info.
 	ResourceInfo() *errdetails.ResourceInfo
 
-	// Help gets the help info.
+	// Help returns the help info.
 	Help() *errdetails.Help
 
-	// LocalizedMessage gets the localized message info.
+	// LocalizedMessage returns the localized message info.
 	LocalizedMessage() *errdetails.LocalizedMessage
 
-	// Details return additional details from the Status
+	// Details returns additional details from the Status
 	Details() []proto.Message
 }
 
@@ -190,7 +191,10 @@ func (st *sampleStatus) Message() string {
 
 func (st *sampleStatus) causeMessage(causeAny *Cause) string {
 	if causeProto := causeAny.GetError(); causeProto != nil {
-		causeErr, _ := causeProto.UnmarshalNew()
+		causeErr, err := causeProto.UnmarshalNew()
+		if err != nil {
+			panic(err)
+		}
 		return causeErr.(error).Error()
 	}
 	if causeMsg := causeAny.GetMessage(); causeMsg != nil {
@@ -200,47 +204,15 @@ func (st *sampleStatus) causeMessage(causeAny *Cause) string {
 }
 
 func (st *sampleStatus) GRPCStatus() *grpcstatus.Status {
-	grpcStatus := st.err.GetGrpcStatus()
-	// return new grpc statu
-	grpcProto := &rpcstatus.Status{
-		Code:    grpcStatus.GetCode(),
-		Message: grpcStatus.GetMessage(),
-	}
-
-	// copy grpc status details
-	details := make([]*anypb.Any, 0, len(grpcStatus.GetDetails())+3)
-
-	// add cause info
-	if st.err.GetCause() != nil {
-		cause, _ := anypb.New(st.err.GetCause())
-		details = append(details, cause)
-	}
-
-	// add detail
-	if st.err.GetDetail() != nil {
-		detail, _ := anypb.New(st.err.GetDetail())
-		details = append(details, detail)
-	}
-
-	// add http status info
-	if st.err.GetHttpStatus() != nil {
-		httpStatus, _ := anypb.New(st.err.GetHttpStatus())
-		details = append(details, httpStatus)
-	}
-
-	// add grpc status details
-	details = append(details, grpcStatus.GetDetails()...)
-
-	grpcProto.Details = details
-	return grpcstatus.FromProto(grpcProto)
+	grpcStatus := protox.Clone(st.err.GetGrpcStatus())
+	grpcStatus.Details = st.AppendDetails(grpcStatus.Details)
+	return grpcstatus.FromProto(grpcStatus)
 }
 
 func (st *sampleStatus) HTTPStatus() *httpstatus.HttpResponse {
-	return protox.Clone(st.err.GetHttpStatus())
-}
-
-func (st *sampleStatus) Proto() (*rpcstatus.Status, *httpstatus.HttpResponse) {
-	return protox.Clone(st.err.GetGrpcStatus()), protox.Clone(st.err.GetHttpStatus())
+	httpStatus := protox.Clone(st.err.GetHttpStatus())
+	httpStatus.Headers = st.AppendHeader(httpStatus.Headers)
+	return httpStatus
 }
 
 func (st *sampleStatus) Is(target error) bool {
@@ -252,97 +224,72 @@ func (st *sampleStatus) Is(target error) bool {
 }
 
 func (st *sampleStatus) Equals(target error) bool {
-	var targetErr *sampleStatus
-	if !errors.As(target, &targetErr) {
+	targetStatus, ok := target.(Status)
+	if !ok {
 		return false
 	}
-	if st.err.GetGrpcStatus().GetCode() != targetErr.err.GetGrpcStatus().GetCode() {
-		return false
-	}
-	if st.err.GetHttpStatus().GetStatus() != targetErr.err.GetHttpStatus().GetStatus() {
-		return false
-	}
-	return true
+	return targetStatus.Code() == st.Code() && targetStatus.StatusCode() == st.StatusCode()
 }
 
 func (st *sampleStatus) Unwrap() error {
-	cause := st.err.GetCause()
+	return st.err.GetCause().Unwrap()
+}
 
-	// if no cause, return nil
-	if cause == nil {
-		return nil
-	}
-
-	causeAny := cause.GetError()
-	// if no cause error, return message
-	if causeAny == nil {
-		return errors.New(cause.GetMessage().GetValue())
-	}
-
-	// unmarshal cause error
-	causeProto, err := causeAny.UnmarshalNew()
-	if err != nil {
-		panic(err)
-	}
-	// must be error
-	return causeProto.(error)
+func (st *sampleStatus) StatusCode() int {
+	return int(st.err.GetHttpStatus().GetStatus())
 }
 
 func (st *sampleStatus) Headers() http.Header {
 	header := make(http.Header)
-	headers := st.err.GetHttpStatus().GetHeaders()
+	headers := st.AppendHeader(slices.Clone(st.err.GetHttpStatus().GetHeaders()))
 	for _, item := range headers {
 		header.Add(item.GetKey(), item.GetValue())
 	}
 	return header
 }
 
-func (st *sampleStatus) HttpHeader() []*httpstatus.HttpHeader {
-	return st.err.GetHttpStatus().GetHeaders()
-}
-
-func (st *sampleStatus) HttpBody() *wrapperspb.BytesValue {
-	return wrapperspb.Bytes(st.err.GetHttpStatus().GetBody())
+func (st *sampleStatus) MarshalJSON() ([]byte, error) {
+	return st.err.GetHttpStatus().GetBody(), nil
 }
 
 func (st *sampleStatus) ErrorInfo() *errdetails.ErrorInfo {
-	return st.err.GetDetail().GetErrorInfo()
+	return protox.Clone(st.err.GetDetail().GetErrorInfo())
 }
 
 func (st *sampleStatus) RetryInfo() *errdetails.RetryInfo {
-	return st.err.GetDetail().GetRetryInfo()
+	return protox.Clone(st.err.GetDetail().GetRetryInfo())
 }
 
 func (st *sampleStatus) DebugInfo() *errdetails.DebugInfo {
-	return st.err.GetDetail().GetDebugInfo()
+	return protox.Clone(st.err.GetDetail().GetDebugInfo())
 }
 
 func (st *sampleStatus) QuotaFailure() *errdetails.QuotaFailure {
-	return st.err.GetDetail().GetQuotaFailure()
+	return protox.Clone(st.err.GetDetail().GetQuotaFailure())
 }
 
 func (st *sampleStatus) PreconditionFailure() *errdetails.PreconditionFailure {
-	return st.err.GetDetail().GetPreconditionFailure()
+	return protox.Clone(st.err.GetDetail().GetPreconditionFailure())
 }
 
 func (st *sampleStatus) BadRequest() *errdetails.BadRequest {
-	return st.err.GetDetail().GetBadRequest()
+	return protox.Clone(st.err.GetDetail().GetBadRequest())
 }
 
 func (st *sampleStatus) RequestInfo() *errdetails.RequestInfo {
-	return st.err.GetDetail().GetRequestInfo()
+	return protox.Clone(st.err.GetDetail().GetRequestInfo())
 }
 
 func (st *sampleStatus) ResourceInfo() *errdetails.ResourceInfo {
-	return st.err.GetDetail().GetResourceInfo()
+	return protox.Clone(st.err.GetDetail().GetResourceInfo())
 }
 
 func (st *sampleStatus) Help() *errdetails.Help {
-	return st.err.GetDetail().GetHelp()
+	return protox.Clone(st.err.GetDetail().GetHelp())
 }
 
 func (st *sampleStatus) LocalizedMessage() *errdetails.LocalizedMessage {
-	return st.err.GetDetail().GetLocalizedMessage()
+	return protox.Clone(st.err.GetDetail().GetLocalizedMessage())
 }
 
 func (st *sampleStatus) Details() []proto.Message {
@@ -356,4 +303,88 @@ func (st *sampleStatus) Details() []proto.Message {
 		messages = append(messages, detail)
 	}
 	return messages
+}
+
+func (st *sampleStatus) AppendDetails(details []*anypb.Any) []*anypb.Any {
+	// add cause info to details
+	if st.err.GetCause() != nil {
+		cause, err := anypb.New(st.err.GetCause())
+		if err != nil {
+			panic(err)
+		}
+		details = append(details, cause)
+	}
+
+	// add detail info to details
+	if st.err.GetDetail() != nil {
+		detail, err := anypb.New(st.err.GetDetail())
+		if err != nil {
+			panic(err)
+		}
+		details = append(details, detail)
+	}
+
+	// add http status info to details
+	if st.err.GetHttpStatus() != nil {
+		httpStatus, err := anypb.New(st.err.GetHttpStatus())
+		if err != nil {
+			panic(err)
+		}
+		details = append(details, httpStatus)
+	}
+	return details
+}
+
+func (st *sampleStatus) AppendHeader(headers []*httpstatus.HttpHeader) []*httpstatus.HttpHeader {
+	// add cause info to header
+	if st.err.GetCause() != nil {
+		info, err := anypb.New(st.err.GetCause())
+		if err != nil {
+			panic(err)
+		}
+		data, err := protojson.Marshal(info)
+		if err != nil {
+			panic(err)
+		}
+		item := &httpstatus.HttpHeader{
+			Key:   kStatusCauseKey,
+			Value: string(data),
+		}
+		headers = append(headers, item)
+	}
+
+	// add detail info to header
+	if st.err.GetDetail() != nil {
+		info, err := anypb.New(st.err.GetDetail())
+		if err != nil {
+			panic(err)
+		}
+		data, err := protojson.Marshal(info)
+		if err != nil {
+			panic(err)
+		}
+		item := &httpstatus.HttpHeader{
+			Key:   kStatusDetailKey,
+			Value: string(data),
+		}
+		headers = append(headers, item)
+	}
+
+	// add grpc status info to header
+	if st.err.GetGrpcStatus() != nil {
+		info, err := anypb.New(st.err.GetGrpcStatus())
+		if err != nil {
+			panic(err)
+		}
+		data, err := protojson.Marshal(info)
+		if err != nil {
+			panic(err)
+		}
+		item := &httpstatus.HttpHeader{
+			Key:   kStatusGrpcKey,
+			Value: string(data),
+		}
+		headers = append(headers, item)
+	}
+	return headers
 }
