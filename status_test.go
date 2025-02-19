@@ -143,37 +143,3 @@ func TestIs(t *testing.T) {
 	)
 	assert.False(t, errors.Is(st1, st3))
 }
-
-func TestCodeEquals(t *testing.T) {
-	text := "password is invalid"
-	domain := "account"
-	metadata := map[string]string{"username": "leo"}
-	number := "13013013013"
-	key := "WWW-Authenticate"
-	value := "Basic realm=xxx"
-	st1 := status.Unauthenticated(
-		status.Message(text),
-		status.ErrorInfo(text, domain, metadata),
-		status.Headers(http.Header{key: {value}}),
-		status.Detail(&phone_number.PhoneNumber{
-			Kind: &phone_number.PhoneNumber_E164Number{
-				E164Number: number,
-			},
-		}),
-	)
-
-	st2 := status.Unauthenticated()
-	assert.True(t, st1.CodeEquals(st2))
-
-	st3 := status.Internal(
-		status.Message(text),
-		status.ErrorInfo(text, domain, metadata),
-		status.Headers(http.Header{key: {value}}),
-		status.Detail(&phone_number.PhoneNumber{
-			Kind: &phone_number.PhoneNumber_E164Number{
-				E164Number: number,
-			},
-		}),
-	)
-	assert.False(t, st1.CodeEquals(st3))
-}

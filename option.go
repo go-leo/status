@@ -3,10 +3,12 @@ package status
 import (
 	"errors"
 	"fmt"
+	internalcode "github.com/go-leo/status/internal/code"
 	internalstatus "github.com/go-leo/status/internal/status"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	httpstatus "google.golang.org/genproto/googleapis/rpc/http"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -17,7 +19,21 @@ import (
 
 type Option func(st *sampleStatus)
 
-func withOption(st *sampleStatus, opts ...Option) *sampleStatus {
+func newStatus(code codes.Code, opts ...Option) *sampleStatus {
+	statusCode := internalcode.ToHttpStatusCode(code)
+	st := &sampleStatus{
+		err: &internalstatus.Error{
+			Identifier: fmt.Sprintf("%d-%d", code, statusCode),
+			DetailInfo: &internalstatus.DetailInfo{},
+			HttpStatus: &httpstatus.HttpResponse{
+				Status: int32(statusCode),
+				Reason: http.StatusText(statusCode),
+			},
+			GrpcStatus: &rpcstatus.Status{
+				Code: int32(code),
+			},
+		},
+	}
 	for _, opt := range opts {
 		opt(st)
 	}

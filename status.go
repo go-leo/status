@@ -4,12 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-leo/gox/protox"
-	internalcode "github.com/go-leo/status/internal/code"
 	internalstatus "github.com/go-leo/status/internal/status"
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	httpstatus "google.golang.org/genproto/googleapis/rpc/http"
-	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -207,21 +205,4 @@ func (st *sampleStatus) Detail() []proto.Message {
 		r = append(r, info)
 	}
 	return r
-}
-
-func newStatus(code codes.Code) *sampleStatus {
-	statusCode := internalcode.ToHttpStatusCode(code)
-	return &sampleStatus{
-		err: &internalstatus.Error{
-			Identifier: fmt.Sprintf("%d-%d", code, statusCode),
-			DetailInfo: &internalstatus.DetailInfo{},
-			HttpStatus: &httpstatus.HttpResponse{
-				Status: int32(statusCode),
-				Reason: http.StatusText(statusCode),
-			},
-			GrpcStatus: &rpcstatus.Status{
-				Code: int32(code),
-			},
-		},
-	}
 }

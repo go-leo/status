@@ -28,9 +28,7 @@ func (f *Generator) Generate() error {
 
 	enums := file.Enums
 	for _, enum := range enums {
-		g.P("// ", enum.GoIdent.GoName)
 		for _, value := range enum.Values {
-			g.P("// ", value.GoIdent.GoName, " ", value.Desc.FullName(), " ", value.Desc.Name())
 			g.P("var ", f.Clean(value), " = ", f.Err(value), "()")
 			g.P()
 			g.P("func ", f.Err(value), "(opts ...", Option, ") ", Status, " {")
