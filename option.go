@@ -1,43 +1,38 @@
 package status
 
 import (
+	"errors"
 	"fmt"
+	internalstatus "github.com/go-leo/status/internal/status"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	httpstatus "google.golang.org/genproto/googleapis/rpc/http"
+	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	"net/http"
 	"time"
 )
 
 type Option func(st *sampleStatus)
 
-// Wrap wraps the cause error into the Status.
-func Wrap(err error) Option {
-	return func(st *sampleStatus) {
-		st.err.Cause = st.err.Cause.Wrap(err)
+func withOption(st *sampleStatus, opts ...Option) *sampleStatus {
+	for _, opt := range opts {
+		opt(st)
 	}
+	return st
 }
 
+// Message sets the message of the Status.
 func Message(format string, a ...any) Option {
 	return func(st *sampleStatus) {
 		st.err.GrpcStatus.Message = fmt.Sprintf(format, a...)
 	}
 }
 
-// Details adds additional details to the Status as protocol buffer messages.
-func Details(details ...proto.Message) Option {
-	return func(st *sampleStatus) {
-		for _, item := range details {
-			value, _ := anypb.New(item)
-			st.err.GrpcStatus.Details = append(st.err.GrpcStatus.Details, value)
-		}
-	}
-}
-
-// Header sets the http header info.
-func Header(header http.Header) Option {
+// Headers sets the http header info.
+func Headers(header http.Header) Option {
 	return func(st *sampleStatus) {
 		for key, values := range header {
 			for _, value := range values {
@@ -51,10 +46,7 @@ func Header(header http.Header) Option {
 // ErrorInfo sets the error info.
 func ErrorInfo(reason string, domain string, metadata map[string]string) Option {
 	return func(st *sampleStatus) {
-		if st.err.Detail == nil {
-			st.err.Detail = &Detail{}
-		}
-		st.err.Detail.ErrorInfo = &errdetails.ErrorInfo{
+		st.err.DetailInfo.ErrorInfo = &errdetails.ErrorInfo{
 			Reason:   reason,
 			Domain:   domain,
 			Metadata: metadata,
@@ -65,10 +57,7 @@ func ErrorInfo(reason string, domain string, metadata map[string]string) Option 
 // RetryInfo sets the retry info.
 func RetryInfo(retryDelay time.Duration) Option {
 	return func(st *sampleStatus) {
-		if st.err.Detail == nil {
-			st.err.Detail = &Detail{}
-		}
-		st.err.Detail.RetryInfo = &errdetails.RetryInfo{
+		st.err.DetailInfo.RetryInfo = &errdetails.RetryInfo{
 			RetryDelay: durationpb.New(retryDelay),
 		}
 	}
@@ -77,10 +66,7 @@ func RetryInfo(retryDelay time.Duration) Option {
 // DebugInfo sets the debug info.
 func DebugInfo(stackEntries []string, detail string) Option {
 	return func(st *sampleStatus) {
-		if st.err.Detail == nil {
-			st.err.Detail = &Detail{}
-		}
-		st.err.Detail.DebugInfo = &errdetails.DebugInfo{
+		st.err.DetailInfo.DebugInfo = &errdetails.DebugInfo{
 			StackEntries: stackEntries,
 			Detail:       detail,
 		}
@@ -90,10 +76,7 @@ func DebugInfo(stackEntries []string, detail string) Option {
 // QuotaFailure sets the quota failure info.
 func QuotaFailure(violations []*errdetails.QuotaFailure_Violation) Option {
 	return func(st *sampleStatus) {
-		if st.err.Detail == nil {
-			st.err.Detail = &Detail{}
-		}
-		st.err.Detail.QuotaFailure = &errdetails.QuotaFailure{
+		st.err.DetailInfo.QuotaFailure = &errdetails.QuotaFailure{
 			Violations: violations,
 		}
 	}
@@ -102,10 +85,7 @@ func QuotaFailure(violations []*errdetails.QuotaFailure_Violation) Option {
 // PreconditionFailure sets the precondition failure info.
 func PreconditionFailure(violations []*errdetails.PreconditionFailure_Violation) Option {
 	return func(st *sampleStatus) {
-		if st.err.Detail == nil {
-			st.err.Detail = &Detail{}
-		}
-		st.err.Detail.PreconditionFailure = &errdetails.PreconditionFailure{
+		st.err.DetailInfo.PreconditionFailure = &errdetails.PreconditionFailure{
 			Violations: violations,
 		}
 	}
@@ -114,10 +94,7 @@ func PreconditionFailure(violations []*errdetails.PreconditionFailure_Violation)
 // BadRequest sets the bad request info.
 func BadRequest(violations []*errdetails.BadRequest_FieldViolation) Option {
 	return func(st *sampleStatus) {
-		if st.err.Detail == nil {
-			st.err.Detail = &Detail{}
-		}
-		st.err.Detail.BadRequest = &errdetails.BadRequest{
+		st.err.DetailInfo.BadRequest = &errdetails.BadRequest{
 			FieldViolations: violations,
 		}
 	}
@@ -126,10 +103,7 @@ func BadRequest(violations []*errdetails.BadRequest_FieldViolation) Option {
 // RequestInfo sets the request info.
 func RequestInfo(requestId string, servingData string) Option {
 	return func(st *sampleStatus) {
-		if st.err.Detail == nil {
-			st.err.Detail = &Detail{}
-		}
-		st.err.Detail.RequestInfo = &errdetails.RequestInfo{
+		st.err.DetailInfo.RequestInfo = &errdetails.RequestInfo{
 			RequestId:   requestId,
 			ServingData: servingData,
 		}
@@ -139,10 +113,7 @@ func RequestInfo(requestId string, servingData string) Option {
 // ResourceInfo sets the resource info.
 func ResourceInfo(resourceType string, resourceName string, owner string, description string) Option {
 	return func(st *sampleStatus) {
-		if st.err.Detail == nil {
-			st.err.Detail = &Detail{}
-		}
-		st.err.Detail.ResourceInfo = &errdetails.ResourceInfo{
+		st.err.DetailInfo.ResourceInfo = &errdetails.ResourceInfo{
 			ResourceType: resourceType,
 			ResourceName: resourceName,
 			Owner:        owner,
@@ -154,10 +125,7 @@ func ResourceInfo(resourceType string, resourceName string, owner string, descri
 // Help sets the help info.
 func Help(links []*errdetails.Help_Link) Option {
 	return func(st *sampleStatus) {
-		if st.err.Detail == nil {
-			st.err.Detail = &Detail{}
-		}
-		st.err.Detail.Help = &errdetails.Help{
+		st.err.DetailInfo.Help = &errdetails.Help{
 			Links: links,
 		}
 	}
@@ -166,12 +134,55 @@ func Help(links []*errdetails.Help_Link) Option {
 // LocalizedMessage sets the localized message info.
 func LocalizedMessage(locale string, message string) Option {
 	return func(st *sampleStatus) {
-		if st.err.Detail == nil {
-			st.err.Detail = &Detail{}
-		}
-		st.err.Detail.LocalizedMessage = &errdetails.LocalizedMessage{
+		st.err.DetailInfo.LocalizedMessage = &errdetails.LocalizedMessage{
 			Locale:  locale,
 			Message: message,
+		}
+	}
+}
+
+// Detail adds additional detail to the Status.
+func Detail(detail proto.Message) Option {
+	return func(st *sampleStatus) {
+		switch item := detail.(type) {
+		case *wrapperspb.StringValue:
+			Message(item.GetValue())(st)
+		case *httpstatus.HttpHeader:
+			st.err.HttpStatus.Headers = append(st.err.HttpStatus.Headers, item)
+		case *errdetails.ErrorInfo:
+			ErrorInfo(item.GetReason(), item.GetDomain(), item.GetMetadata())(st)
+		case *errdetails.RetryInfo:
+			RetryInfo(item.GetRetryDelay().AsDuration())(st)
+		case *errdetails.DebugInfo:
+			DebugInfo(item.GetStackEntries(), item.GetDetail())(st)
+		case *errdetails.QuotaFailure:
+			QuotaFailure(item.GetViolations())(st)
+		case *errdetails.PreconditionFailure:
+			PreconditionFailure(item.GetViolations())(st)
+		case *errdetails.BadRequest:
+			BadRequest(item.GetFieldViolations())(st)
+		case *errdetails.RequestInfo:
+			RequestInfo(item.GetRequestId(), item.GetServingData())(st)
+		case *errdetails.ResourceInfo:
+			ResourceInfo(item.GetResourceType(), item.GetResourceName(), item.GetOwner(), item.GetDescription())(st)
+		case *errdetails.Help:
+			Help(item.GetLinks())(st)
+		case *errdetails.LocalizedMessage:
+			LocalizedMessage(item.GetLocale(), item.GetMessage())(st)
+		case *httpstatus.HttpResponse:
+			panic(errors.New("status: unsupported HttpResponse"))
+		case *rpcstatus.Status:
+			panic(errors.New("status: unsupported Status"))
+		case *internalstatus.DetailInfo:
+			panic(errors.New("status: unsupported DetailInfo"))
+		case *HttpBody:
+			panic(errors.New("status: unsupported HttpBody"))
+		default:
+			value, err := anypb.New(item)
+			if err != nil {
+				panic(err)
+			}
+			st.err.DetailInfo.Details = append(st.err.DetailInfo.Details, value)
 		}
 	}
 }

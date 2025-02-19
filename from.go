@@ -3,7 +3,7 @@ package status
 import (
 	"context"
 	"errors"
-	httpstatus "google.golang.org/genproto/googleapis/rpc/http"
+	internalstatus "github.com/go-leo/status/internal/status"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
@@ -14,7 +14,7 @@ func From(obj any) Status {
 	switch st := obj.(type) {
 	case *sampleStatus:
 		return st
-	case *Error:
+	case *internalstatus.Error:
 		return &sampleStatus{
 			err: st,
 		}
@@ -49,33 +49,12 @@ func fromError(err error) Status {
 	if grpcStatus, ok := grpcstatus.FromError(err); ok {
 		return fromRpcStatus(grpcStatus.Proto())
 	}
-	return Unknown(Wrap(err))
+	return Unknown(Message(err.Error()))
 }
 
 func fromRpcStatus(grpcProto *rpcstatus.Status) Status {
 	st := newStatus(codes.Code(grpcProto.Code))
-	for _, value := range grpcProto.GetDetails() {
-		switch {
-		case value.MessageIs(&Cause{}):
-			st.err.Cause = new(Cause)
-			err := value.UnmarshalTo(st.err.Cause)
-			if err != nil {
-				panic(err)
-			}
-		case value.MessageIs(&Detail{}):
-			st.err.Detail = new(Detail)
-			err := value.UnmarshalTo(st.err.Detail)
-			if err != nil {
-				panic(err)
-			}
-		case value.MessageIs(&httpstatus.HttpResponse{}):
-			err := value.UnmarshalTo(st.err.HttpStatus)
-			if err != nil {
-				panic(err)
-			}
-		default:
-			st.err.GrpcStatus.Details = append(st.err.GrpcStatus.Details, value)
-		}
-	}
+	st.err.GrpcStatus.Message = grpcProto.GetMessage()
+	st.err.DetailInfo, st.err.HttpStatus = st.err.FromGrpcDetails(grpcProto.GetDetails())
 	return st
 }
