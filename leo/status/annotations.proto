@@ -6,11 +6,11 @@ import "google/protobuf/descriptor.proto";
 import "google/rpc/code.proto";
 
 extend google.protobuf.EnumOptions {
-  google.rpc.Code default_rpc_code = 67108;
+  // 如果枚举有默认值，则默认值对应的rpc code
+  google.rpc.Code default_rpc_code = 65108;
 }
 
 extend google.protobuf.EnumValueOptions {
-  google.rpc.Code rpc_code = 65108;
-  int64 business_code = 70468;
+  google.rpc.Code rpc_code = 70518;
   string message = 82251;
 }

@@ -2,7 +2,6 @@ package status
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/go-leo/gox/protox"
 	internalcode "github.com/go-leo/status/internal/code"
@@ -21,6 +20,9 @@ import (
 type Status interface {
 	error
 
+	// Identifier returns the identifier.
+	Identifier() string
+
 	// Code returns the status code.
 	Code() codes.Code
 
@@ -37,9 +39,6 @@ type Status interface {
 
 	// Is implements future errors.Is functionality.
 	Is(target error) bool
-
-	// CodeEquals only comparing gRPC status code and http status code.
-	CodeEquals(target error) bool
 
 	// StatusCode returns the http status code.
 	StatusCode() int
@@ -84,12 +83,18 @@ type Status interface {
 	Detail() []proto.Message
 }
 
+var _ Status = (*sampleStatus)(nil)
+
 type sampleStatus struct {
 	err *internalstatus.Error
 }
 
 func (st *sampleStatus) Error() string {
 	return fmt.Sprintf("status: code = %s, status-code = %d, desc = %s", st.Code(), st.StatusCode(), st.Message())
+}
+
+func (st *sampleStatus) Identifier() string {
+	return st.err.GetIdentifier()
 }
 
 func (st *sampleStatus) Code() codes.Code {
@@ -119,19 +124,13 @@ func (st *sampleStatus) HTTPStatus() *httpstatus.HttpResponse {
 }
 
 func (st *sampleStatus) Is(target error) bool {
-	var targetErr *sampleStatus
-	if !errors.As(target, &targetErr) {
-		return false
-	}
-	return proto.Equal(st.err, targetErr.err)
-}
-
-func (st *sampleStatus) CodeEquals(target error) bool {
 	targetStatus, ok := target.(Status)
 	if !ok {
 		return false
 	}
-	return targetStatus.Code() == st.Code() && targetStatus.StatusCode() == st.StatusCode()
+	return targetStatus.Code() == st.Code() &&
+		targetStatus.StatusCode() == st.StatusCode() &&
+		targetStatus.Identifier() == st.Identifier()
 }
 
 func (st *sampleStatus) StatusCode() int {
@@ -214,6 +213,7 @@ func newStatus(code codes.Code) *sampleStatus {
 	statusCode := internalcode.ToHttpStatusCode(code)
 	return &sampleStatus{
 		err: &internalstatus.Error{
+			Identifier: fmt.Sprintf("%d-%d", code, statusCode),
 			DetailInfo: &internalstatus.DetailInfo{},
 			HttpStatus: &httpstatus.HttpResponse{
 				Status: int32(statusCode),

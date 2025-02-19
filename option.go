@@ -24,6 +24,15 @@ func withOption(st *sampleStatus, opts ...Option) *sampleStatus {
 	return st
 }
 
+// Identifier sets the identifier of the Status.
+// This distinguish between two Status objects as being the same when
+// both code and status are identical.
+func Identifier(id string) Option {
+	return func(st *sampleStatus) {
+		st.err.Identifier = id
+	}
+}
+
 // Message sets the message of the Status.
 func Message(format string, a ...any) Option {
 	return func(st *sampleStatus) {

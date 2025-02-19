@@ -1,5 +1,5 @@
 # Status
-status 是一个微服务常用的状态码管理工具，参考google Status 规范设计。
+status 是一个微服务常用的状态码管理工具，参考 google Status 规范设计。
 
 
 

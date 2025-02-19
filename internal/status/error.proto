@@ -10,6 +10,9 @@ import "google/rpc/code.proto";
 
 // Error is the error.
 message Error {
+  // This distinguish between two Status objects as being the same when
+  // both code and status are identical.
+  string identifier = 1;
 
   // detail is the details.
   DetailInfo detail_info = 2;
