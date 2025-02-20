@@ -92,7 +92,7 @@ func (st *sampleStatus) Error() string {
 }
 
 func (st *sampleStatus) Identifier() string {
-	return st.err.GetIdentifier()
+	return st.err.GetDetailInfo().GetIdentifier().GetValue()
 }
 
 func (st *sampleStatus) Code() codes.Code {
@@ -122,7 +122,7 @@ func (st *sampleStatus) HTTPStatus() *httpstatus.HttpResponse {
 }
 
 func (st *sampleStatus) Is(target error) bool {
-	targetStatus, ok := target.(Status)
+	targetStatus, ok := From(target)
 	if !ok {
 		return false
 	}

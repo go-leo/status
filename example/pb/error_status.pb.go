@@ -6,174 +6,18 @@ import (
 	status "github.com/go-leo/status"
 )
 
-var clean_ErrOK = ErrOK()
+var clean_ErrInvalidName = ErrInvalidName()
 
-func ErrOK(opts ...status.Option) status.Status {
-	return status.OK(append([]status.Option{status.Identifier("Errors_OK"), status.Message("成功")}, opts...)...)
+func ErrInvalidName(opts ...status.Option) status.Status {
+	return status.InvalidArgument(append([]status.Option{status.Identifier("Errors_InvalidName"), status.Message("名称为空")}, opts...)...)
 }
 
-func IsOK(err error) bool {
-	return clean_ErrOK.Is(status.From(err))
-}
-
-var clean_ErrDownloadCancelled = ErrDownloadCancelled()
-
-func ErrDownloadCancelled(opts ...status.Option) status.Status {
-	return status.Canceled(append([]status.Option{status.Identifier("Errors_DownloadCancelled"), status.Message("下载被取消")}, opts...)...)
-}
-
-func IsDownloadCancelled(err error) bool {
-	return clean_ErrDownloadCancelled.Is(status.From(err))
-}
-
-var clean_ErrRequestGoogleFailed = ErrRequestGoogleFailed()
-
-func ErrRequestGoogleFailed(opts ...status.Option) status.Status {
-	return status.Unknown(append([]status.Option{status.Identifier("Errors_RequestGoogleFailed"), status.Message("请求google失败")}, opts...)...)
-}
-
-func IsRequestGoogleFailed(err error) bool {
-	return clean_ErrRequestGoogleFailed.Is(status.From(err))
-}
-
-var clean_ErrInvalidPassword = ErrInvalidPassword()
-
-func ErrInvalidPassword(opts ...status.Option) status.Status {
-	return status.InvalidArgument(append([]status.Option{status.Identifier("Errors_InvalidPassword"), status.Message("密码无效")}, opts...)...)
-}
-
-func IsInvalidPassword(err error) bool {
-	return clean_ErrInvalidPassword.Is(status.From(err))
-}
-
-var clean_ErrResourceExpired = ErrResourceExpired()
-
-func ErrResourceExpired(opts ...status.Option) status.Status {
-	return status.DeadlineExceeded(append([]status.Option{status.Identifier("Errors_ResourceExpired"), status.Message("资源过期")}, opts...)...)
-}
-
-func IsResourceExpired(err error) bool {
-	return clean_ErrResourceExpired.Is(status.From(err))
-}
-
-var clean_ErrUserNotFound = ErrUserNotFound()
-
-func ErrUserNotFound(opts ...status.Option) status.Status {
-	return status.NotFound(append([]status.Option{status.Identifier("Errors_UserNotFound"), status.Message("用户未找到")}, opts...)...)
-}
-
-func IsUserNotFound(err error) bool {
-	return clean_ErrUserNotFound.Is(status.From(err))
-}
-
-var clean_ErrUserAlreadyExists = ErrUserAlreadyExists()
-
-func ErrUserAlreadyExists(opts ...status.Option) status.Status {
-	return status.AlreadyExists(append([]status.Option{status.Identifier("Errors_UserAlreadyExists"), status.Message("用户已存在")}, opts...)...)
-}
-
-func IsUserAlreadyExists(err error) bool {
-	return clean_ErrUserAlreadyExists.Is(status.From(err))
-}
-
-var clean_ErrDeleteUserPermissionDenied = ErrDeleteUserPermissionDenied()
-
-func ErrDeleteUserPermissionDenied(opts ...status.Option) status.Status {
-	return status.PermissionDenied(append([]status.Option{status.Identifier("Errors_DeleteUserPermissionDenied"), status.Message("无权删除用户")}, opts...)...)
-}
-
-func IsDeleteUserPermissionDenied(err error) bool {
-	return clean_ErrDeleteUserPermissionDenied.Is(status.From(err))
-}
-
-var clean_ErrTokenExpired = ErrTokenExpired()
-
-func ErrTokenExpired(opts ...status.Option) status.Status {
-	return status.Unauthenticated(append([]status.Option{status.Identifier("Errors_TokenExpired"), status.Message("token已过期")}, opts...)...)
-}
-
-func IsTokenExpired(err error) bool {
-	return clean_ErrTokenExpired.Is(status.From(err))
-}
-
-var clean_ErrHDD_FULL = ErrHDD_FULL()
-
-func ErrHDD_FULL(opts ...status.Option) status.Status {
-	return status.ResourceExhausted(append([]status.Option{status.Identifier("Errors_HDD_FULL"), status.Message("硬盘空间不足")}, opts...)...)
-}
-
-func IsHDD_FULL(err error) bool {
-	return clean_ErrHDD_FULL.Is(status.From(err))
-}
-
-var clean_ErrUserDeleted = ErrUserDeleted()
-
-func ErrUserDeleted(opts ...status.Option) status.Status {
-	return status.FailedPrecondition(append([]status.Option{status.Identifier("Errors_UserDeleted"), status.Message("用户已经被删除")}, opts...)...)
-}
-
-func IsUserDeleted(err error) bool {
-	return clean_ErrUserDeleted.Is(status.From(err))
-}
-
-var clean_ErrUserCreateFailed = ErrUserCreateFailed()
-
-func ErrUserCreateFailed(opts ...status.Option) status.Status {
-	return status.Aborted(append([]status.Option{status.Identifier("Errors_UserCreateFailed"), status.Message("创建用户失败")}, opts...)...)
-}
-
-func IsUserCreateFailed(err error) bool {
-	return clean_ErrUserCreateFailed.Is(status.From(err))
-}
-
-var clean_ErrVideoOutOfRange = ErrVideoOutOfRange()
-
-func ErrVideoOutOfRange(opts ...status.Option) status.Status {
-	return status.OutOfRange(append([]status.Option{status.Identifier("Errors_VideoOutOfRange"), status.Message("视频超出范围")}, opts...)...)
-}
-
-func IsVideoOutOfRange(err error) bool {
-	return clean_ErrVideoOutOfRange.Is(status.From(err))
-}
-
-var clean_ErrMethodNotImplemented = ErrMethodNotImplemented()
-
-func ErrMethodNotImplemented(opts ...status.Option) status.Status {
-	return status.Unimplemented(append([]status.Option{status.Identifier("Errors_MethodNotImplemented"), status.Message("方法未实现")}, opts...)...)
-}
-
-func IsMethodNotImplemented(err error) bool {
-	return clean_ErrMethodNotImplemented.Is(status.From(err))
-}
-
-var clean_ErrRedisCrash = ErrRedisCrash()
-
-func ErrRedisCrash(opts ...status.Option) status.Status {
-	return status.Internal(append([]status.Option{status.Identifier("Errors_RedisCrash"), status.Message("redis崩溃")}, opts...)...)
-}
-
-func IsRedisCrash(err error) bool {
-	return clean_ErrRedisCrash.Is(status.From(err))
-}
-
-var clean_ErrRequestRejected = ErrRequestRejected()
-
-func ErrRequestRejected(opts ...status.Option) status.Status {
-	return status.Unavailable(append([]status.Option{status.Identifier("Errors_RequestRejected"), status.Message("请求被拒绝")}, opts...)...)
-}
-
-func IsRequestRejected(err error) bool {
-	return clean_ErrRequestRejected.Is(status.From(err))
-}
-
-var clean_ErrMysqlDataLoss = ErrMysqlDataLoss()
-
-func ErrMysqlDataLoss(opts ...status.Option) status.Status {
-	return status.DataLoss(append([]status.Option{status.Identifier("Errors_MysqlDataLoss"), status.Message("Mysql数据丢失")}, opts...)...)
-}
-
-func IsMysqlDataLoss(err error) bool {
-	return clean_ErrMysqlDataLoss.Is(status.From(err))
+func IsInvalidName(err error) (status.Status, bool) {
+	st, ok := status.From(err)
+	if !ok {
+		return st, false
+	}
+	return st, clean_ErrInvalidName.Is(st)
 }
 
 var clean_ErrFileDownloadFailed = ErrFileDownloadFailed()
@@ -182,8 +26,12 @@ func ErrFileDownloadFailed(opts ...status.Option) status.Status {
 	return status.Internal(append([]status.Option{status.Identifier("Errors_FileDownloadFailed"), status.Message("文件下载失败")}, opts...)...)
 }
 
-func IsFileDownloadFailed(err error) bool {
-	return clean_ErrFileDownloadFailed.Is(status.From(err))
+func IsFileDownloadFailed(err error) (status.Status, bool) {
+	st, ok := status.From(err)
+	if !ok {
+		return st, false
+	}
+	return st, clean_ErrFileDownloadFailed.Is(st)
 }
 
 var clean_ErrFileUploadFailed = ErrFileUploadFailed()
@@ -192,6 +40,10 @@ func ErrFileUploadFailed(opts ...status.Option) status.Status {
 	return status.Internal(append([]status.Option{status.Identifier("Errors_FileUploadFailed")}, opts...)...)
 }
 
-func IsFileUploadFailed(err error) bool {
-	return clean_ErrFileUploadFailed.Is(status.From(err))
+func IsFileUploadFailed(err error) (status.Status, bool) {
+	st, ok := status.From(err)
+	if !ok {
+		return st, false
+	}
+	return st, clean_ErrFileUploadFailed.Is(st)
 }

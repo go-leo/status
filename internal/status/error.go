@@ -50,6 +50,12 @@ func (detailInfo *DetailInfo) FromAnySlice(details []*anypb.Any) *DetailInfo {
 	}
 	for _, value := range details {
 		switch {
+		case value.MessageIs(&Identifier{}):
+			detailInfo.Identifier = new(Identifier)
+			err := value.UnmarshalTo(detailInfo.Identifier)
+			if err != nil {
+				panic(err)
+			}
 		case value.MessageIs(&errdetails.ErrorInfo{}):
 			detailInfo.ErrorInfo = new(errdetails.ErrorInfo)
 			err := value.UnmarshalTo(detailInfo.ErrorInfo)
@@ -122,6 +128,13 @@ func (detailInfo *DetailInfo) ToAnySlice() []*anypb.Any {
 		return nil
 	}
 	var details []*anypb.Any
+	if info := detailInfo.GetIdentifier(); info != nil {
+		infoAny, e := anypb.New(info)
+		if e != nil {
+			panic(e)
+		}
+		details = append(details, infoAny)
+	}
 	if info := detailInfo.GetErrorInfo(); info != nil {
 		infoAny, e := anypb.New(info)
 		if e != nil {

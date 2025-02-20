@@ -10,46 +10,44 @@ import (
 	"net/url"
 )
 
-func From(obj any) Status {
+func From(obj any) (Status, bool) {
 	switch st := obj.(type) {
 	case *sampleStatus:
-		return st
+		return st, true
 	case *internalstatus.Error:
 		return &sampleStatus{
 			err: st,
-		}
+		}, true
 	case Status:
-		return st
+		return st, true
 	case *rpcstatus.Status:
-		return fromRpcStatus(st)
+		return fromRpcStatus(st), true
 	case *grpcstatus.Status:
-		return fromRpcStatus(st.Proto())
+		return fromRpcStatus(st.Proto()), true
 	case interface{ GRPCStatus() *grpcstatus.Status }:
-		return fromRpcStatus(st.GRPCStatus().Proto())
+		return fromRpcStatus(st.GRPCStatus().Proto()), true
 	case error:
 		return fromError(st)
 	default:
-		return Unknown(Message("%s", obj))
+		return Unknown(Message("%s", obj)), false
 	}
 }
 
-func fromError(err error) Status {
+func fromError(err error) (Status, bool) {
 	if errors.Is(err, context.DeadlineExceeded) {
-		return DeadlineExceeded()
+		return DeadlineExceeded(), true
 	}
 	if errors.Is(err, context.Canceled) {
-		return Canceled()
+		return Canceled(), true
 	}
 	if urlErr := new(url.Error); errors.As(err, &urlErr) {
-		return Unavailable()
+		return Unavailable(), true
 	}
 	if statusErr := new(sampleStatus); errors.As(err, &statusErr) {
-		return statusErr
+		return statusErr, true
 	}
-	if grpcStatus, ok := grpcstatus.FromError(err); ok {
-		return fromRpcStatus(grpcStatus.Proto())
-	}
-	return Unknown(Message(err.Error()))
+	grpcStatus, ok := grpcstatus.FromError(err)
+	return fromRpcStatus(grpcStatus.Proto()), ok
 }
 
 func fromRpcStatus(grpcProto *rpcstatus.Status) Status {

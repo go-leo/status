@@ -40,8 +40,12 @@ func (f *Generator) Generate() error {
 			}
 			g.P("}")
 			g.P()
-			g.P("func ", f.Is(value), "(err error) bool {")
-			g.P("return ", f.Clean(value), ".Is(", From, "(err))")
+			g.P("func ", f.Is(value), "(err error) (", Status, ", bool) {")
+			g.P("st, ok :=", From, "(err)")
+			g.P("if !ok {")
+			g.P("return st, false")
+			g.P("}")
+			g.P("return st, ", f.Clean(value), ".Is(st)")
 			g.P("}")
 			g.P()
 		}

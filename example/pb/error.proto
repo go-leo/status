@@ -7,41 +7,9 @@ import "status/annotations.proto";
 enum Errors {
   option (status.default_rpc_code) = INTERNAL;
 
-  OK = 0 [(status.rpc_code) = OK, (status.message) = "成功"];
+  InvalidName = 0 [(status.rpc_code) = INVALID_ARGUMENT, (status.message) = "名称为空"];
 
-  DownloadCancelled = 1 [(status.rpc_code) = CANCELLED, (status.message) = "下载被取消"];
+  FileDownloadFailed = 1 [(status.message) = "文件下载失败"];
 
-  RequestGoogleFailed = 2 [(status.rpc_code) = UNKNOWN, (status.message) = "请求google失败"];
-
-  InvalidPassword = 3 [(status.rpc_code) = INVALID_ARGUMENT, (status.message) = "密码无效"];
-
-  ResourceExpired = 4 [(status.rpc_code) = DEADLINE_EXCEEDED, (status.message) = "资源过期"];
-
-  UserNotFound = 5 [(status.rpc_code) = NOT_FOUND, (status.message) = "用户未找到"];
-
-  UserAlreadyExists = 6 [(status.rpc_code) = ALREADY_EXISTS, (status.message) = "用户已存在"];
-
-  DeleteUserPermissionDenied = 7 [(status.rpc_code) = PERMISSION_DENIED, (status.message) = "无权删除用户"];
-
-  TokenExpired = 16 [(status.rpc_code) = UNAUTHENTICATED, (status.message) = "token已过期"];
-
-  HDD_FULL = 8 [(status.rpc_code) = RESOURCE_EXHAUSTED, (status.message) = "硬盘空间不足"];
-
-  UserDeleted = 9 [(status.rpc_code) = FAILED_PRECONDITION, (status.message) = "用户已经被删除"];
-
-  UserCreateFailed = 10 [(status.rpc_code) = ABORTED, (status.message) = "创建用户失败"];
-
-  VideoOutOfRange = 11 [(status.rpc_code) = OUT_OF_RANGE, (status.message) = "视频超出范围"];
-
-  MethodNotImplemented = 12 [(status.rpc_code) = UNIMPLEMENTED, (status.message) = "方法未实现"];
-
-  RedisCrash = 13 [(status.rpc_code) = INTERNAL, (status.message) = "redis崩溃"];
-
-  RequestRejected = 14 [(status.rpc_code) = UNAVAILABLE, (status.message) = "请求被拒绝"];
-
-  MysqlDataLoss = 15 [(status.rpc_code) = DATA_LOSS, (status.message) = "Mysql数据丢失"];
-
-  FileDownloadFailed = 17 [(status.message) = "文件下载失败"];
-
-  FileUploadFailed = 18;
+  FileUploadFailed = 2;
 }

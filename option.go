@@ -23,8 +23,11 @@ func newStatus(code codes.Code, opts ...Option) *sampleStatus {
 	statusCode := internalcode.ToHttpStatusCode(code)
 	st := &sampleStatus{
 		err: &internalstatus.Error{
-			Identifier: fmt.Sprintf("%d-%d", code, statusCode),
-			DetailInfo: &internalstatus.DetailInfo{},
+			DetailInfo: &internalstatus.DetailInfo{
+				Identifier: &internalstatus.Identifier{
+					Value: fmt.Sprintf("%d-%d", code, statusCode),
+				},
+			},
 			HttpStatus: &httpstatus.HttpResponse{
 				Status: int32(statusCode),
 				Reason: http.StatusText(statusCode),
@@ -45,7 +48,9 @@ func newStatus(code codes.Code, opts ...Option) *sampleStatus {
 // both code and status are identical.
 func Identifier(id string) Option {
 	return func(st *sampleStatus) {
-		st.err.Identifier = id
+		st.err.DetailInfo.Identifier = &internalstatus.Identifier{
+			Value: id,
+		}
 	}
 }
 
