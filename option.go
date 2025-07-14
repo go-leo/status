@@ -55,6 +55,21 @@ func newStatus(code codes.Code, opts ...Option) *sampleStatus {
 	return st
 }
 
+func NewStatus(grpcStatus codes.Code, httpStatus int, opts ...Option) *sampleStatus {
+	st := &sampleStatus{
+		err: &statuspb.Error{
+			GrpcStatus: &rpcstatus.Status{Code: int32(grpcStatus)},
+			DetailInfo: &statuspb.DetailInfo{
+				Identifier: &statuspb.Identifier{Value: fmt.Sprintf("%d-%d", grpcStatus, httpStatus)},
+			},
+		},
+	}
+	for _, opt := range opts {
+		opt(st)
+	}
+	return st
+}
+
 // Identifier sets the identifier of the Status.
 // This distinguish between two Status objects as being the same when
 // both code and status are identical.

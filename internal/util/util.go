@@ -1,4 +1,6 @@
-package status
+package util
+
+import "golang.org/x/exp/slices"
 
 func FindFunc[E any](s []E, f func(E) bool) (E, bool) {
 	if i := slices.IndexFunc(s, f); i != -1 {

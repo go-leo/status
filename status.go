@@ -1,4 +1,4 @@
-package statusx
+package status
 
 import (
 	"encoding/json"
@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-leo/gox/protox"
 	"github.com/go-leo/status/internal/statuspb"
 	"github.com/go-leo/status/internal/util"
 	"golang.org/x/exp/maps"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	status "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -108,7 +108,7 @@ func (st *sampleStatus) Message() string {
 }
 
 func (st *sampleStatus) GRPCStatus() *grpcstatus.Status {
-	grpcStatus := protox.Clone(st.err.GetGrpcStatus())
+	grpcStatus := proto.Clone(st.err.GetGrpcStatus()).(*status.Status)
 	grpcStatus.Details = statuspb.ToGrpcDetails(st.err.GetDetailInfo())
 	return grpcstatus.FromProto(grpcStatus)
 }

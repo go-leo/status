@@ -6,6 +6,7 @@ import "leo/status/annotations.proto";
 
 enum Errors {
   option (leo.status.default_rpc_code) = INTERNAL;
+  option (leo.status.default_http_code) = 500;
 
   InvalidName = 0 [(leo.status.rpc_code) = INVALID_ARGUMENT, (leo.status.message) = "名称为空"];
 

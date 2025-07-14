@@ -6,15 +6,13 @@ import "google/protobuf/descriptor.proto";
 import "google/rpc/code.proto";
 
 extend google.protobuf.EnumOptions {
-  // 如果一个枚举是要定义错误，必须要设置default_rpc_code
-  // 如果不设置，会忽略这个枚举
-  google.rpc.Code default_rpc_code = 65108;
+  google.rpc.Code default_rpc_status = 96961;
+  int32 default_http_status = 934522;
 }
 
+
 extend google.protobuf.EnumValueOptions {
-  // 当枚举值设置了rpc_code，则就用这个rpc_code
-  // 当枚举值没有设置rpc_code，则使用默认的default_rpc_code
-  google.rpc.Code rpc_code = 70518;
-  // 错误消息
-  string message = 82251;
+  google.rpc.Code rpc_status = 2939201;
+  int32 http_status = 80978200;
+  string message =  279882248;
 }
