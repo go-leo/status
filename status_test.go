@@ -5,19 +5,16 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/go-leo/leo/v3/statusx"
-	"github.com/go-leo/status"
 	"github.com/go-leo/status/proto/leo/status"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
-	httpstatusx "google.golang.org/genproto/googleapis/rpc/http"
 	"google.golang.org/genproto/googleapis/type/phone_number"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestCode(t *testing.T) {
-	st := statusx.Internal()
+	st := Internal()
 	assert.Equal(t, codes.Internal, st.Code())
 }
 
@@ -28,11 +25,11 @@ func TestGRPCStatus(t *testing.T) {
 	number := "13013013013"
 	key := "WWW-Authenticate"
 	value := "Basic realm=xxx"
-	st := statusx.Unauthenticated(
-		statusx.Message(text),
-		statusx.ErrorInfo(text, domain, metadata),
-		statusx.Headers(http.Header{key: {value}}),
-		statusx.Extra(&phone_number.PhoneNumber{
+	st := Unauthenticated(
+		Message(text),
+		ErrorInfo(text, domain, metadata),
+		Headers(http.Header{key: {value}}),
+		Extra(&phone_number.PhoneNumber{
 			Kind: &phone_number.PhoneNumber_E164Number{
 				E164Number: number,
 			},
@@ -52,7 +49,7 @@ func TestGRPCStatus(t *testing.T) {
 	phoneNumber := details[1].(*phone_number.PhoneNumber)
 	assert.Equal(t, number, phoneNumber.GetE164Number())
 
-	response := details[2].(*httpstatusx.HttpResponse)
+	response := details[2].(*httpHttpResponse)
 	assert.Equal(t, http.StatusUnauthorized, int(response.GetStatus()))
 	assert.Equal(t, key, response.GetHeaders()[0].GetKey())
 	assert.Equal(t, value, response.GetHeaders()[0].GetValue())
@@ -65,11 +62,11 @@ func TestHTTPStatus(t *testing.T) {
 	number := "13013013013"
 	key := "WWW-Authenticate"
 	value := "Basic realm=xxx"
-	st := statusx.Unauthenticated(
-		statusx.Message(text),
-		statusx.ErrorInfo(text, domain, metadata),
-		statusx.Headers(http.Header{key: {value}}),
-		statusx.Extra(&phone_number.PhoneNumber{
+	st := Unauthenticated(
+		Message(text),
+		ErrorInfo(text, domain, metadata),
+		Headers(http.Header{key: {value}}),
+		Extra(&phone_number.PhoneNumber{
 			Kind: &phone_number.PhoneNumber_E164Number{
 				E164Number: number,
 			},
@@ -106,22 +103,22 @@ func TestIs(t *testing.T) {
 	number := "13013013013"
 	key := "WWW-Authenticate"
 	value := "Basic realm=xxx"
-	st1 := statusx.Unauthenticated(
-		statusx.Message(text),
-		statusx.ErrorInfo(text, domain, metadata),
-		statusx.Headers(http.Header{key: {value}}),
-		statusx.Extra(&phone_number.PhoneNumber{
+	st1 := Unauthenticated(
+		Message(text),
+		ErrorInfo(text, domain, metadata),
+		Headers(http.Header{key: {value}}),
+		Extra(&phone_number.PhoneNumber{
 			Kind: &phone_number.PhoneNumber_E164Number{
 				E164Number: number,
 			},
 		}),
 	)
 
-	st2 := statusx.Unauthenticated(
-		statusx.Message(text),
-		statusx.ErrorInfo(text, domain, metadata),
-		statusx.Headers(http.Header{key: {value}}),
-		statusx.Extra(&phone_number.PhoneNumber{
+	st2 := Unauthenticated(
+		Message(text),
+		ErrorInfo(text, domain, metadata),
+		Headers(http.Header{key: {value}}),
+		Extra(&phone_number.PhoneNumber{
 			Kind: &phone_number.PhoneNumber_E164Number{
 				E164Number: number,
 			},
@@ -130,11 +127,11 @@ func TestIs(t *testing.T) {
 
 	assert.True(t, errors.Is(st1, st2))
 
-	st3 := statusx.Internal(
-		statusx.Message(text),
-		statusx.ErrorInfo(text, domain, metadata),
-		statusx.Headers(http.Header{key: {value}}),
-		statusx.Extra(&phone_number.PhoneNumber{
+	st3 := Internal(
+		Message(text),
+		ErrorInfo(text, domain, metadata),
+		Headers(http.Header{key: {value}}),
+		Extra(&phone_number.PhoneNumber{
 			Kind: &phone_number.PhoneNumber_E164Number{
 				E164Number: number,
 			},
