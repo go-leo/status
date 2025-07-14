@@ -7,7 +7,7 @@
 package status
 
 import (
-	_ "github.com/go-leo/leo/v3/proto/leo/status"
+	_ "github.com/go-leo/status/proto/leo/status"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

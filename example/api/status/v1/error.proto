@@ -1,6 +1,6 @@
 syntax = "proto3";
 package leo.example.status.errors;
-option go_package = "github.com/go-leo/leo/v3/example/api/status/v1;status";
+option go_package = "github.com/go-leo/status/example/api/status/v1;status";
 
 import "leo/status/annotations.proto";
 

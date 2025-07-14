@@ -33,14 +33,14 @@ status 是一个微服务常用的状态码管理工具，参考 google Status �
 
 # Install
 ```
-go get github.com/go-leo/leo/v3/proto-gen-go-len@latest
+go get github.com/go-leo/status/proto-gen-go-len@latest
 ```
 
 # 定义错误
 ```protobuf
 syntax = "proto3";
 package leo.example.status.errors;
-option go_package = "github.com/go-leo/leo/v3/example/status/api;api";
+option go_package = "github.com/go-leo/status/example/status/api;api";
 
 import "leo/status/annotations.proto";
 
@@ -83,7 +83,7 @@ protoc \
 package api
 
 import (
-	statusx "github.com/go-leo/leo/v3/statusx"
+	statusx "github.com/go-leo/status"
 )
 
 var clean_ErrInvalidName = ErrInvalidName()
@@ -141,8 +141,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/go-leo/leo/v3/example/status/api"
-	"github.com/go-leo/leo/v3/statusx"
+	"github.com/go-leo/status/example/status/api"
+	"github.com/go-leo/status"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"log"

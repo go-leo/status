@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package leo.internal.statusx;
 
-option go_package = "github.com/go-leo/leo/v3/internal/statusx;statusx";
+option go_package = "github.com/go-leo/status/internal/statusx;statusx";
 
 import "google/protobuf/any.proto";
 import "google/protobuf/wrappers.proto";

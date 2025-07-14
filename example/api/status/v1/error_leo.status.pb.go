@@ -3,7 +3,7 @@
 package status
 
 import (
-	statusx "github.com/go-leo/leo/v3/statusx"
+	statusx "github.com/go-leo/status"
 )
 
 var clean_ErrInvalidName = ErrInvalidName()
