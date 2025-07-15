@@ -16,15 +16,19 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
+// Option defines a function type that modifies a sampleStatus instance
 type Option func(st *sampleStatus)
 
+// New creates a new Status instance with the given gRPC status code and options
+// It automatically sets the corresponding HTTP status code using util.ToHttpStatusCode
+// and applies all provided Option functions to configure the Status
 func New(grpcStatus codes.Code, opts ...Option) Status {
 	httpStatus := util.ToHttpStatusCode(grpcStatus)
 	st := &sampleStatus{
 		st: &statuspb.Status{
-			Identifier: &statuspb.Identifier{Value: fmt.Sprintf("%d-%d", grpcStatus, httpStatus)},
+			Identifier: fmt.Sprintf("%d-%d", grpcStatus, httpStatus),
 			RpcStatus:  code.Code(grpcStatus),
-			HttpStatus: &statuspb.HttpStatus{Value: int32(httpStatus)},
+			HttpStatus: int32(httpStatus),
 		},
 	}
 	for _, opt := range opts {
@@ -33,31 +37,32 @@ func New(grpcStatus codes.Code, opts ...Option) Status {
 	return st
 }
 
-// Identifier sets the identifier of the Status.
-// This distinguish between two Status objects as being the same when
-// both code and status are identical.
+// Identifier sets a unique identifier for the Status
+// This helps distinguish between Status objects with identical codes
 func Identifier(id string) Option {
 	return func(st *sampleStatus) {
-		st.st.Identifier = &statuspb.Identifier{
-			Value: id,
-		}
+		st.st.Identifier = id
 	}
 }
 
-// Message sets the message of the Status.
+// Message sets the human-readable message for the Status
+// Supports format strings with variadic arguments like fmt.Sprintf
 func Message(format string, a ...any) Option {
 	return func(st *sampleStatus) {
-		st.st.Message = &statuspb.Message{Value: fmt.Sprintf(format, a...)}
+		st.st.Message = fmt.Sprintf(format, a...)
 	}
 }
 
+// HttpStatus explicitly sets the HTTP status code
+// Overrides the default mapping from gRPC status code
 func HttpStatus(code int) Option {
 	return func(st *sampleStatus) {
-		st.st.HttpStatus = &statuspb.HttpStatus{Value: int32(code)}
+		st.st.HttpStatus = int32(code)
 	}
 }
 
-// Headers sets the http header info.
+// Headers configures HTTP headers to be included in the Status
+// The headers will be stored in the Status details
 func Headers(header http.Header) Option {
 	return func(st *sampleStatus) {
 		if st.st.Details == nil {
@@ -75,7 +80,8 @@ func Headers(header http.Header) Option {
 	}
 }
 
-// ErrorInfo sets the error info.
+// ErrorInfo attaches error metadata to the Status
+// Includes reason, domain, and arbitrary key-value pairs
 func ErrorInfo(reason string, domain string, metadata map[string]string) Option {
 	return func(st *sampleStatus) {
 		if st.st.Details == nil {
@@ -89,7 +95,8 @@ func ErrorInfo(reason string, domain string, metadata map[string]string) Option 
 	}
 }
 
-// RetryInfo sets the retry info.
+// RetryInfo specifies retry delay information
+// Used to indicate when clients should retry failed operations
 func RetryInfo(retryDelay time.Duration) Option {
 	return func(st *sampleStatus) {
 		if st.st.Details == nil {
@@ -101,7 +108,8 @@ func RetryInfo(retryDelay time.Duration) Option {
 	}
 }
 
-// DebugInfo sets the debug info.
+// DebugInfo attaches debugging information to the Status
+// Can include stack traces and additional debug details
 func DebugInfo(stackEntries []string, detail string) Option {
 	return func(st *sampleStatus) {
 		if st.st.Details == nil {
@@ -114,7 +122,8 @@ func DebugInfo(stackEntries []string, detail string) Option {
 	}
 }
 
-// QuotaFailure sets the quota failure info.
+// QuotaFailure specifies quota violation details
+// Used when requests exceed quota limits
 func QuotaFailure(violations []*errdetails.QuotaFailure_Violation) Option {
 	return func(st *sampleStatus) {
 		if st.st.Details == nil {
@@ -126,7 +135,8 @@ func QuotaFailure(violations []*errdetails.QuotaFailure_Violation) Option {
 	}
 }
 
-// PreconditionFailure sets the precondition failure info.
+// PreconditionFailure describes precondition violations
+// Used when API preconditions aren't met
 func PreconditionFailure(violations []*errdetails.PreconditionFailure_Violation) Option {
 	return func(st *sampleStatus) {
 		if st.st.Details == nil {
@@ -138,7 +148,8 @@ func PreconditionFailure(violations []*errdetails.PreconditionFailure_Violation)
 	}
 }
 
-// BadRequest sets the bad request info.
+// BadRequest describes invalid request fields
+// Contains field-level validation errors
 func BadRequest(violations []*errdetails.BadRequest_FieldViolation) Option {
 	return func(st *sampleStatus) {
 		if st.st.Details == nil {
@@ -150,7 +161,8 @@ func BadRequest(violations []*errdetails.BadRequest_FieldViolation) Option {
 	}
 }
 
-// RequestInfo sets the request info.
+// RequestInfo attaches request metadata
+// Includes request ID and serving data for tracking
 func RequestInfo(requestId string, servingData string) Option {
 	return func(st *sampleStatus) {
 		if st.st.Details == nil {
@@ -163,7 +175,8 @@ func RequestInfo(requestId string, servingData string) Option {
 	}
 }
 
-// ResourceInfo sets the resource info.
+// ResourceInfo describes affected resources
+// Provides details about resource type, name, owner, etc.
 func ResourceInfo(resourceType string, resourceName string, owner string, description string) Option {
 	return func(st *sampleStatus) {
 		if st.st.Details == nil {
@@ -178,7 +191,8 @@ func ResourceInfo(resourceType string, resourceName string, owner string, descri
 	}
 }
 
-// Help sets the help info.
+// Help provides assistance links
+// Contains documentation and support resources
 func Help(links []*errdetails.Help_Link) Option {
 	return func(st *sampleStatus) {
 		if st.st.Details == nil {
@@ -190,7 +204,8 @@ func Help(links []*errdetails.Help_Link) Option {
 	}
 }
 
-// LocalizedMessage sets the localized message info.
+// LocalizedMessage provides translated error messages
+// Includes locale information and localized text
 func LocalizedMessage(locale string, message string) Option {
 	return func(st *sampleStatus) {
 		if st.st.Details == nil {
@@ -203,7 +218,8 @@ func LocalizedMessage(locale string, message string) Option {
 	}
 }
 
-// Extra sets the extra info.
+// Extra attaches arbitrary protocol buffer messages
+// Used for custom extension data, will panic if serialization fails
 func Extra(extra proto.Message) Option {
 	return func(st *sampleStatus) {
 		if st.st.Details == nil {
@@ -213,6 +229,6 @@ func Extra(extra proto.Message) Option {
 		if err != nil {
 			panic(err)
 		}
-		st.st.Details.Extra.Values = append(st.st.Details.Extra.Values, value)
+		st.st.Details.Extra = append(st.st.Details.Extra, value)
 	}
 }

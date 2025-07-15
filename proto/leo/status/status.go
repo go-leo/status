@@ -1,63 +1,57 @@
 package status
 
 import (
-	"encoding/json"
-
 	errdetails "google.golang.org/genproto/googleapis/rpc/errdetails"
 	anypb "google.golang.org/protobuf/types/known/anypb"
 )
 
+// Protobuf message type references for Any type handling
 var (
-	_Identifier          = &Identifier{}
-	_HttpStatus          = &HttpStatus{}
-	_ErrorInfo           = &errdetails.ErrorInfo{}
-	_RetryInfo           = &errdetails.RetryInfo{}
-	_DebugInfo           = &errdetails.DebugInfo{}
-	_QuotaFailure        = &errdetails.QuotaFailure{}
-	_PreconditionFailure = &errdetails.PreconditionFailure{}
-	_BadRequest          = &errdetails.BadRequest{}
-	_RequestInfo         = &errdetails.RequestInfo{}
-	_ResourceInfo        = &errdetails.ResourceInfo{}
-	_Help                = &errdetails.Help{}
-	_LocalizedMessage    = &errdetails.LocalizedMessage{}
-	_Header              = &Header{}
-	_Extra               = &Extra{}
+	_Identifier          = &Identifier{}                     // Identifier message type reference
+	_HttpStatus          = &HttpStatus{}                     // HttpStatus message type reference
+	_ErrorInfo           = &errdetails.ErrorInfo{}           // ErrorInfo message type reference
+	_RetryInfo           = &errdetails.RetryInfo{}           // RetryInfo message type reference
+	_DebugInfo           = &errdetails.DebugInfo{}           // DebugInfo message type reference
+	_QuotaFailure        = &errdetails.QuotaFailure{}        // QuotaFailure message type reference
+	_PreconditionFailure = &errdetails.PreconditionFailure{} // PreconditionFailure message type reference
+	_BadRequest          = &errdetails.BadRequest{}          // BadRequest message type reference
+	_RequestInfo         = &errdetails.RequestInfo{}         // RequestInfo message type reference
+	_ResourceInfo        = &errdetails.ResourceInfo{}        // ResourceInfo message type reference
+	_Help                = &errdetails.Help{}                // Help message type reference
+	_LocalizedMessage    = &errdetails.LocalizedMessage{}    // LocalizedMessage message type reference
+	_Header              = &Header{}                         // Header message type reference
+	_Extra               = &Extra{}                          // Extra message type reference
 )
 
+// GrpcDetails converts all status information to Any protobuf messages
+// Includes:
+//   - Identifier
+//   - HttpStatus
+//   - All error details (ErrorInfo, RetryInfo, DebugInfo, etc.)
+//
+// Returns:
+//   - []*anypb.Any: Slice of Any messages containing all status information
+//
+// Panics:
+//   - If Any message creation fails
 func (x *Status) GrpcDetails() []*anypb.Any {
-	if x == nil || x.Details == nil {
-		return nil
-	}
-	info := x.GetDetails().GetHeader()
-	if info == nil {
-		x.HttpDetails()
-	}
-	infoAny, err := anypb.New(info)
-	if err != nil {
-		panic(err)
-	}
-	return append(x.HttpDetails(), infoAny)
-}
-
-func (x *Status) HttpDetails() []*anypb.Any {
-	if x == nil || x.Details == nil {
-		return nil
-	}
 	var details []*anypb.Any
-	if info := x.GetIdentifier(); info != nil {
-		infoAny, err := anypb.New(info)
+	// Convert each piece of status information to Any protobuf message
+	if info := x.GetIdentifier(); info != "" {
+		infoAny, err := anypb.New(&Identifier{Value: info})
 		if err != nil {
 			panic(err)
 		}
 		details = append(details, infoAny)
 	}
-	if info := x.GetHttpStatus(); info != nil {
-		infoAny, err := anypb.New(info)
+	if info := x.GetHttpStatus(); info != 0 {
+		infoAny, err := anypb.New(&HttpStatus{Value: info})
 		if err != nil {
 			panic(err)
 		}
 		details = append(details, infoAny)
 	}
+	// Convert all error details to Any messages
 	if info := x.GetDetails().GetErrorInfo(); info != nil {
 		infoAny, err := anypb.New(info)
 		if err != nil {
@@ -128,8 +122,15 @@ func (x *Status) HttpDetails() []*anypb.Any {
 		}
 		details = append(details, infoAny)
 	}
-	if info := x.GetDetails().GetExtra(); info != nil {
+	if info := x.GetDetails().GetHeader(); info != nil {
 		infoAny, err := anypb.New(info)
+		if err != nil {
+			panic(err)
+		}
+		details = append(details, infoAny)
+	}
+	if info := x.GetDetails().GetExtra(); len(info) > 0 {
+		infoAny, err := anypb.New(&Extra{Values: info})
 		if err != nil {
 			panic(err)
 		}
@@ -138,22 +139,38 @@ func (x *Status) HttpDetails() []*anypb.Any {
 	return details
 }
 
-func FromDetails(details []*anypb.Any) *Status {
+// FromGrpcDetails converts a slice of Any messages back to a Status proto
+// Handles all supported detail types including:
+//   - Identifier
+//   - HttpStatus
+//   - All error details types (ErrorInfo, RetryInfo, etc.)
+//   - Header information
+//   - Extra custom messages
+//
+// Returns:
+//   - *Status: Reconstructed Status proto
+//
+// Panics:
+//   - If Any message unmarshaling fails
+func FromGrpcDetails(details []*anypb.Any) *Status {
 	st := &Status{}
 	for _, value := range details {
 		switch {
+		// Handle each supported message type
 		case value.MessageIs(_Identifier):
-			st.Identifier = &Identifier{}
-			err := value.UnmarshalTo(st.Identifier)
+			identifier := &Identifier{}
+			err := value.UnmarshalTo(identifier)
 			if err != nil {
 				panic(err)
 			}
+			st.Identifier = identifier.GetValue()
 		case value.MessageIs(_HttpStatus):
-			st.HttpStatus = &HttpStatus{}
-			err := value.UnmarshalTo(st.HttpStatus)
+			httpStatus := &HttpStatus{}
+			err := value.UnmarshalTo(httpStatus)
 			if err != nil {
 				panic(err)
 			}
+			st.HttpStatus = httpStatus.GetValue()
 		case value.MessageIs(_ErrorInfo):
 			if st.Details == nil {
 				st.Details = &Details{}
@@ -259,62 +276,19 @@ func FromDetails(details []*anypb.Any) *Status {
 			if st.Details == nil {
 				st.Details = &Details{}
 			}
-			if st.Details.Extra == nil {
-				st.Details.Extra = &Extra{}
-			}
-			err := value.UnmarshalTo(st.Details.Header)
+			extra := &Extra{}
+			err := value.UnmarshalTo(extra)
 			if err != nil {
 				panic(err)
 			}
+			st.Details.Extra = append(st.Details.Extra, extra.GetValues()...)
 		default:
+			// Handle unknown message types by storing in Extra
 			if st.Details == nil {
 				st.Details = &Details{}
 			}
-			if st.Details.Extra == nil {
-				st.Details.Extra = &Extra{}
-			}
-			st.Details.Extra.Values = append(st.Details.Extra.Values, value)
+			st.Details.Extra = append(st.Details.Extra, value)
 		}
 	}
 	return st
-}
-
-func (x *Identifier) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.GetValue())
-}
-
-func (x *Identifier) UnmarshalJSON(b []byte) error {
-	return json.Unmarshal(b, &x.Value)
-}
-
-func (x *HttpStatus) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.GetValue())
-}
-
-func (x *HttpStatus) UnmarshalJSON(b []byte) error {
-	return json.Unmarshal(b, &x.Value)
-}
-
-func (x *Message) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.GetValue())
-}
-
-func (x *Message) UnmarshalJSON(b []byte) error {
-	return json.Unmarshal(b, &x.Value)
-}
-
-func (x *Header) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.GetValues())
-}
-
-func (x *Header) UnmarshalJSON(b []byte) error {
-	return json.Unmarshal(b, &x.Values)
-}
-
-func (x *Extra) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.GetValues())
-}
-
-func (x *Extra) UnmarshalJSON(b []byte) error {
-	return json.Unmarshal(b, &x.Values)
 }

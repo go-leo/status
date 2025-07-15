@@ -8,26 +8,16 @@ import "google/rpc/error_details.proto";
 import "google/rpc/http.proto";
 
 message Status {
-  Identifier identifier = 1;
+  string identifier = 1;
 
   google.rpc.Code rpc_status = 2;
 
-  HttpStatus http_status = 3;
+  int32 http_status = 3;
 
-  Message message = 4;
+  string message = 4;
 
   Details details = 5;
 }
-
-message Identifier { string value = 1; }
-
-message HttpStatus { int32 value = 1; }
-
-message Message { string value = 1; }
-
-message Header { repeated google.rpc.HttpHeader values = 13; }
-
-message Extra { repeated google.protobuf.Any values = 1; }
 
 message Details {
   google.rpc.ErrorInfo error_info = 2;
@@ -52,5 +42,15 @@ message Details {
 
   Header header = 12;
 
-  Extra extra = 13;
+  repeated google.protobuf.Any extra = 13;
 }
+
+message Identifier { string value = 1; }
+
+message HttpStatus { int32 value = 1; }
+
+message Message { string value = 1; }
+
+message Header { repeated google.rpc.HttpHeader values = 13; }
+
+message Extra { repeated google.protobuf.Any values = 1; }

@@ -17,6 +17,17 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+// From converts various types of status representations into a unified Status interface.
+// It supports conversion from:
+// - *sampleStatus (internal implementation)
+// - Status interface
+// - *statuspb.Status (protobuf)
+// - *rpcstatus.Status (gRPC status)
+// - *grpcstatus.Status (gRPC wrapper)
+// - Any type implementing GRPCStatus() method
+// - *http.Response (HTTP response)
+// - error (including context errors, URL errors, and gRPC errors)
+// Returns the converted Status and a boolean indicating if conversion was successful.
 func From(obj any) (Status, bool) {
 	switch st := obj.(type) {
 	case *sampleStatus:
@@ -40,28 +51,38 @@ func From(obj any) (Status, bool) {
 	}
 }
 
+// fromRpcStatus converts a gRPC status proto (*rpcstatus.Status) to Status interface.
+// It preserves:
+// - Status code (converted to code.Code)
+// - Message (if present)
+// - All original details (via statuspb.FromDetails)
 func fromRpcStatus(grpcProto *rpcstatus.Status) Status {
-	st := statuspb.FromDetails(grpcProto.Details)
+	st := statuspb.FromGrpcDetails(grpcProto.Details)
 	st.RpcStatus = code.Code(grpcProto.Code)
 	if len(grpcProto.GetMessage()) > 0 {
-		st.Message = &statuspb.Message{Value: grpcProto.GetMessage()}
+		st.Message = grpcProto.GetMessage()
 	}
 	return &sampleStatus{st: st}
 }
 
+// fromHttpResponse converts an HTTP response to Status interface.
+// It:
+// 1. Attempts to parse response body as statuspb.Status (JSON)
+// 2. Sets HTTP status code from response
+// 3. Extracts headers marked with special key (kKey) and stores them in Details
+// Returns the converted Status and true (always succeeds)
 func fromHttpResponse(resp *http.Response) (Status, bool) {
 	st := &statuspb.Status{}
 	if data, err := io.ReadAll(resp.Body); err == nil {
 		_ = protojson.Unmarshal(data, st)
 	}
-	st.HttpStatus = &statuspb.HttpStatus{Value: int32(resp.StatusCode)}
+	st.HttpStatus = int32(resp.StatusCode)
 	if keys := strings.Split(resp.Header.Get(kKey), kSeparator); len(keys) > 0 {
 		st.Details = &statuspb.Details{
 			Header: &statuspb.Header{},
 		}
 		for _, key := range keys {
-			values := resp.Header.Values(key)
-			for _, value := range values {
+			for _, value := range resp.Header[key] {
 				st.Details.Header.Values = append(st.Details.Header.Values, &rpchttp.HttpHeader{Key: key, Value: value})
 			}
 		}
@@ -69,6 +90,15 @@ func fromHttpResponse(resp *http.Response) (Status, bool) {
 	return &sampleStatus{st: st}, true
 }
 
+// fromError converts various error types to Status interface.
+// Special cases handled:
+// - context.DeadlineExceeded → codes.DeadlineExceeded
+// - context.Canceled → codes.Canceled
+// - url.Error → codes.Unavailable
+// - sampleStatus errors (preserved as-is)
+// - gRPC errors (via grpcstatus.FromError)
+// Other errors become codes.Unknown status.
+// Returns the Status and a boolean indicating if it was a recognized error type.
 func fromError(err error) (Status, bool) {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return New(codes.DeadlineExceeded, Message(err.Error())), true
