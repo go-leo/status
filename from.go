@@ -72,17 +72,24 @@ func fromRpcStatus(grpcProto *rpcstatus.Status) Status {
 // 3. Extracts headers marked with special key (kKey) and stores them in Details
 // Returns the converted Status and true (always succeeds)
 func fromHttpResponse(resp *http.Response) (Status, bool) {
+	statusKeys, ok := resp.Header[kKey]
+	if !ok {
+		return nil, false
+	}
 	st := &statuspb.Status{}
 	if data, err := io.ReadAll(resp.Body); err == nil {
 		_ = protojson.Unmarshal(data, st)
 	}
 	st.HttpStatus = int32(resp.StatusCode)
-	if keys := strings.Split(resp.Header.Get(kKey), kSeparator); len(keys) > 0 {
-		st.Details = &statuspb.Details{
-			Header: &statuspb.Header{},
+	if keys := strings.Split(statusKeys[0], kSeparator); len(keys) > 0 {
+		if st.Details == nil {
+			st.Details = &statuspb.Details{}
+		}
+		if st.Details.Header == nil {
+			st.Details.Header = &statuspb.Header{}
 		}
 		for _, key := range keys {
-			for _, value := range resp.Header[key] {
+			for _, value := range resp.Header.Values(key) {
 				st.Details.Header.Values = append(st.Details.Header.Values, &rpchttp.HttpHeader{Key: key, Value: value})
 			}
 		}

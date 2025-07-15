@@ -163,11 +163,20 @@ func (st *sampleStatus) MarshalJSON() ([]byte, error) {
 	httpBody := &statuspb.Status{
 		Identifier: st.st.GetIdentifier(),
 		RpcStatus:  st.st.GetRpcStatus(),
-		Details:    st.st.GetDetails(),
-		Message:    st.st.GetMessage(),
-	}
-	if st.st.GetDetails() != nil && st.st.GetDetails().GetHeader() != nil {
-		httpBody.Details.Header = nil
+		Details: &statuspb.Details{
+			ErrorInfo:           st.st.GetDetails().GetErrorInfo(),
+			RetryInfo:           st.st.GetDetails().GetRetryInfo(),
+			DebugInfo:           st.st.GetDetails().GetDebugInfo(),
+			QuotaFailure:        st.st.GetDetails().GetQuotaFailure(),
+			PreconditionFailure: st.st.GetDetails().GetPreconditionFailure(),
+			BadRequest:          st.st.GetDetails().GetBadRequest(),
+			RequestInfo:         st.st.GetDetails().GetRequestInfo(),
+			ResourceInfo:        st.st.GetDetails().GetResourceInfo(),
+			Help:                st.st.GetDetails().GetHelp(),
+			LocalizedMessage:    st.st.GetDetails().GetLocalizedMessage(),
+			Extra:               st.st.GetDetails().GetExtra(),
+		},
+		Message: st.st.GetMessage(),
 	}
 	return protojson.Marshal(httpBody)
 }

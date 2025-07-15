@@ -202,10 +202,8 @@ func (s *server) SayHello(_ context.Context, in *helloworldpb.HelloRequest) (*he
 	return &helloworldpb.HelloReply{Message: "Hello " + in.GetName()}, nil
 }
 ```
-## 运行Server
-```
- go run ./main.go 
-```
+运行Server`go run ./main.go`
+
 ## Client
 ```go
 	r, err := c.SayHello(ctx, &helloworldpb.HelloRequest{Name: *name})
@@ -234,7 +232,7 @@ func (s *server) SayHello(_ context.Context, in *helloworldpb.HelloRequest) (*he
 	}
 	log.Printf("Greeting: %s", r.GetMessage())
 ```
-## 运行Client
+运行Client
 ```
 go run ./main.go -name Default
 go run ./main.go -name JustRpcStatus
@@ -245,8 +243,105 @@ go run ./main.go -name Custom
 ```
 完成gRPC例子见[grpc](example/grpc)
 
-# HTTP(在gors)中使用
+# HTTP中使用
+## Server
+```go
+	mux := http.NewServeMux()
+	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+		content, _ := io.ReadAll(r.Body)
+		name := string(content)
+		log.Printf("Received: %v", name)
+		var st status.Status
+		switch name {
+		case "Default":
+			st = statuspb.ErrDefault(status.ErrorInfo("reason", "domain", map[string]string{"key": "value"}), status.Headers(http.Header{"key": []string{"value"}}))
+		case "JustRpcStatus":
+			st = statuspb.ErrJustRpcStatus(status.RetryInfo(time.Second), status.Headers(http.Header{"key": []string{"value"}}))
+		case "JustHttpStatus":
+			st = statuspb.ErrJustHttpStatus(status.DebugInfo([]string{"stack entry"}, "stack entry"), status.Headers(http.Header{"key": []string{"value"}}))
+		case "JustMessage":
+			st = statuspb.ErrJustMessage(status.QuotaFailure([]*errdetails.QuotaFailure_Violation{{Subject: "subject", Description: "description"}}), status.Headers(http.Header{"key": []string{"value"}}))
+		case "AllHave":
+			st = statuspb.ErrAllHave(status.PreconditionFailure([]*errdetails.PreconditionFailure_Violation{{Subject: "subject", Description: "description"}}), status.Headers(http.Header{"key": []string{"value"}}))
+		case "Custom":
+			st = status.New(
+				codes.Unknown,
+				status.Message("custom message"),
+				status.BadRequest([]*errdetails.BadRequest_FieldViolation{{Field: "field", Description: "description"}}),
+				status.RequestInfo("request_id", "serving_data"),
+				status.ResourceInfo("resource_type", "resource_name", "owner", "description"),
+				status.Help([]*errdetails.Help_Link{{Url: "url", Description: "description"}}),
+				status.LocalizedMessage("locale", "message"),
+				status.Headers(http.Header{"key": []string{"value"}}),
+			)
+		}
+		if st == nil {
+			_, _ = w.Write([]byte("Hello " + name))
+			return
+		}
 
+		var contentType string
+		var body []byte
+		if jsonBody, marshalErr := st.MarshalJSON(); marshalErr == nil {
+			contentType, body = "application/json; charset=utf-8", jsonBody
+		}
+		w.Header().Set("Content-Type", contentType)
+		for k, values := range st.Headers() {
+			for _, v := range values {
+				w.Header().Add(k, v)
+			}
+		}
+		w.WriteHeader(st.StatusCode())
+		_, _ = w.Write(body)
+	})
+```
+运行Server`go run ./main.go`
+
+## Client
+```go
+	resp, err := http.Post("http://"+*addr+"/hello", "text/plain", bytes.NewBuffer([]byte(*name)))
+	if err != nil {
+		log.Fatalf("could not greet: %v", err)
+	}
+	err, ok := status.From(resp)
+	if ok {
+		var st status.Status
+		var ok bool
+		if st, ok = statuspb.IsDefault(err); ok {
+			jsonData, _ := st.MarshalJSON()
+			log.Fatalf("default error: %v, json: %s, header: %v", st, jsonData, st.Headers())
+		} else if st, ok = statuspb.IsJustRpcStatus(err); ok {
+			jsonData, _ := st.MarshalJSON()
+			log.Fatalf("just rpc status error: %v, json: %s, header: %v", st, jsonData, st.Headers())
+		} else if st, ok = statuspb.IsJustHttpStatus(err); ok {
+			jsonData, _ := st.MarshalJSON()
+			log.Fatalf("just http status error: %v, json: %s, header: %v", st, jsonData, st.Headers())
+		} else if st, ok = statuspb.IsJustMessage(err); ok {
+			jsonData, _ := st.MarshalJSON()
+			log.Fatalf("just message error: %v, json: %s, header: %v", st, jsonData, st.Headers())
+		} else if st, ok = statuspb.IsAllHave(err); ok {
+			jsonData, _ := st.MarshalJSON()
+			log.Fatalf("all have error: %v, json: %s, header: %v", st, jsonData, st.Headers())
+		} else {
+			jsonData, _ := st.MarshalJSON()
+			log.Fatalf("custom error: %v, json: %s, header: %v", st, jsonData, st.Headers())
+		}
+	}
+
+	message, _ := io.ReadAll(resp.Body)
+	log.Printf("Greeting: %s", message)
+}
+```
+运行Client
+```
+go run ./main.go -name Default
+go run ./main.go -name JustRpcStatus
+go run ./main.go -name JustHttpStatus
+go run ./main.go -name JustMessage
+go run ./main.go -name AllHave
+go run ./main.go -name Custom
+```
+完成gRPC例子见[grpc](example/http)
 
 # Reference
 

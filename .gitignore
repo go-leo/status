@@ -4,3 +4,5 @@
 .DS_Store
 example/grpc/server/server
 example/grpc/client/client
+example/http/client/client
+example/http/server/server
