@@ -1,0 +1,56 @@
+syntax = "proto3";
+package leo.status;
+option go_package = "github.com/go-leo/status/proto/leo/status;status";
+
+import "google/rpc/code.proto";
+import "google/protobuf/any.proto";
+import "google/rpc/error_details.proto";
+import "google/rpc/http.proto";
+
+message Status {
+  Identifier identifier = 1;
+
+  google.rpc.Code rpc_status = 2;
+
+  HttpStatus http_status = 3;
+
+  Message message = 4;
+
+  Details details = 5;
+}
+
+message Identifier { string value = 1; }
+
+message HttpStatus { int32 value = 1; }
+
+message Message { string value = 1; }
+
+message Header { repeated google.rpc.HttpHeader values = 13; }
+
+message Extra { repeated google.protobuf.Any values = 1; }
+
+message Details {
+  google.rpc.ErrorInfo error_info = 2;
+
+  google.rpc.RetryInfo retry_info = 3;
+
+  google.rpc.DebugInfo debug_info = 4;
+
+  google.rpc.QuotaFailure quota_failure = 5;
+
+  google.rpc.PreconditionFailure precondition_failure = 6;
+
+  google.rpc.BadRequest bad_request = 7;
+
+  google.rpc.RequestInfo request_info = 8;
+
+  google.rpc.ResourceInfo resource_info = 9;
+
+  google.rpc.Help help = 10;
+
+  google.rpc.LocalizedMessage localized_message = 11;
+
+  Header header = 12;
+
+  Extra extra = 13;
+}

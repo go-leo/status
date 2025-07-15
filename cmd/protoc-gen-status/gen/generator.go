@@ -43,18 +43,14 @@ func (f *Generator) Generate() {
 		for _, value := range enum.Values {
 			g.P("var ", f.Clean(value), " = ", f.Err(value), "()")
 			g.P()
-			g.P("func ", f.Err(value), "(opts ...", Option, ") ", Status, " {")
-			message, ok := f.Message(value)
-			if ok {
-				g.P("return ", f.Code(enum, value), "(append([]", Option, "{", Identifier, "(", f.Identifier(value), "), ", Message, "(", message, ")}, opts...)...)")
-			} else {
-				g.P("return ", f.Code(enum, value), "(append([]", Option, "{", Identifier, "(", f.Identifier(value), ")", "}, opts...)...)")
-			}
+
+			g.P("func ", f.Err(value), "(opts ...", OptionIdent, ") ", StatusIdent, " {")
+			g.P("return ", NewIdent, "(", f.RpcStatus(enum, value), ", append([]", OptionIdent, "{", HttpStatusIdent, "(", f.HttpStatus(enum, value), "), ", IdentifierIdent, "(", f.Identifier(value), "), ", MessageIdent, "(", f.Message(value), ")}, opts...)...)")
 			g.P("}")
 			g.P()
-			
-			g.P("func ", f.Is(value), "(err error) (", Status, ", bool) {")
-			g.P("st, ok :=", From, "(err)")
+
+			g.P("func ", f.Is(value), "(err error) (", StatusIdent, ", bool) {")
+			g.P("st, ok :=", FromIdent, "(err)")
 			g.P("if !ok {")
 			g.P("return st, false")
 			g.P("}")
@@ -66,19 +62,31 @@ func (f *Generator) Generate() {
 	return
 }
 
-func (f *Generator) Code(enum *protogen.Enum, value *protogen.EnumValue) any {
-	if proto.HasExtension(value.Desc.Options(), status.E_) {
-		rpcCode := proto.GetExtension(value.Desc.Options(), status.E_RpcCode).(code.Code)
+func (f *Generator) RpcStatus(enum *protogen.Enum, value *protogen.EnumValue) protogen.GoIdent {
+	if proto.HasExtension(value.Desc.Options(), status.E_RpcStatus) {
+		rpcCode := proto.GetExtension(value.Desc.Options(), status.E_RpcStatus).(code.Code)
 		return f.CodeMethod(rpcCode)
 	}
-	if proto.HasExtension(enum.Desc.Options(), status.E_DefaultRpcCode) {
-		rpcCode := proto.GetExtension(enum.Desc.Options(), status.E_DefaultRpcCode).(code.Code)
+	if proto.HasExtension(enum.Desc.Options(), status.E_DefaultRpcStatus) {
+		rpcCode := proto.GetExtension(enum.Desc.Options(), status.E_DefaultRpcStatus).(code.Code)
 		return f.CodeMethod(rpcCode)
 	}
 	return Unknown
 }
 
-func (f *Generator) CodeMethod(rpcCode code.Code) any {
+func (f *Generator) HttpStatus(enum *protogen.Enum, value *protogen.EnumValue) string {
+	if proto.HasExtension(value.Desc.Options(), status.E_HttpStatus) {
+		rpcCode := proto.GetExtension(value.Desc.Options(), status.E_HttpStatus).(int32)
+		return strconv.FormatInt(int64(rpcCode), 10)
+	}
+	if proto.HasExtension(enum.Desc.Options(), status.E_DefaultHttpStatus) {
+		rpcCode := proto.GetExtension(enum.Desc.Options(), status.E_DefaultHttpStatus).(int32)
+		return strconv.FormatInt(int64(rpcCode), 10)
+	}
+	return "500"
+}
+
+func (f *Generator) CodeMethod(rpcCode code.Code) protogen.GoIdent {
 	i := int(rpcCode)
 	if i < 0 && i >= len(CodeMethods) {
 		return Unknown
@@ -102,33 +110,32 @@ func (f *Generator) Identifier(value *protogen.EnumValue) string {
 	return strconv.Quote(value.GoIdent.GoName)
 }
 
-func (f *Generator) Message(value *protogen.EnumValue) (string, bool) {
+func (f *Generator) Message(value *protogen.EnumValue) string {
 	if proto.HasExtension(value.Desc.Options(), status.E_Message) {
-		return strconv.Quote(proto.GetExtension(value.Desc.Options(), status.E_Message).(string)), true
+		return strconv.Quote(proto.GetExtension(value.Desc.Options(), status.E_Message).(string))
 	}
-	return strconv.Quote(""), false
+	return strconv.Quote("")
 }
 
 var (
-	StatusPackage = protogen.GoImportPath("github.com/go-leo/status")
-
-	OK                 = StatusPackage.Ident("OK")
-	Canceled           = StatusPackage.Ident("Canceled")
-	Unknown            = StatusPackage.Ident("Unknown")
-	InvalidArgument    = StatusPackage.Ident("InvalidArgument")
-	DeadlineExceeded   = StatusPackage.Ident("DeadlineExceeded")
-	NotFound           = StatusPackage.Ident("NotFound")
-	AlreadyExists      = StatusPackage.Ident("AlreadyExists")
-	PermissionDenied   = StatusPackage.Ident("PermissionDenied")
-	ResourceExhausted  = StatusPackage.Ident("ResourceExhausted")
-	FailedPrecondition = StatusPackage.Ident("FailedPrecondition")
-	Aborted            = StatusPackage.Ident("Aborted")
-	OutOfRange         = StatusPackage.Ident("OutOfRange")
-	Unimplemented      = StatusPackage.Ident("Unimplemented")
-	Internal           = StatusPackage.Ident("Internal")
-	Unavailable        = StatusPackage.Ident("Unavailable")
-	DataLoss           = StatusPackage.Ident("DataLoss")
-	Unauthenticated    = StatusPackage.Ident("Unauthenticated")
+	RpcCodesPackage    = protogen.GoImportPath("google.golang.org/grpc/codes")
+	OK                 = RpcCodesPackage.Ident("OK")
+	Canceled           = RpcCodesPackage.Ident("Canceled")
+	Unknown            = RpcCodesPackage.Ident("Unknown")
+	InvalidArgument    = RpcCodesPackage.Ident("InvalidArgument")
+	DeadlineExceeded   = RpcCodesPackage.Ident("DeadlineExceeded")
+	NotFound           = RpcCodesPackage.Ident("NotFound")
+	AlreadyExists      = RpcCodesPackage.Ident("AlreadyExists")
+	PermissionDenied   = RpcCodesPackage.Ident("PermissionDenied")
+	ResourceExhausted  = RpcCodesPackage.Ident("ResourceExhausted")
+	FailedPrecondition = RpcCodesPackage.Ident("FailedPrecondition")
+	Aborted            = RpcCodesPackage.Ident("Aborted")
+	OutOfRange         = RpcCodesPackage.Ident("OutOfRange")
+	Unimplemented      = RpcCodesPackage.Ident("Unimplemented")
+	Internal           = RpcCodesPackage.Ident("Internal")
+	Unavailable        = RpcCodesPackage.Ident("Unavailable")
+	DataLoss           = RpcCodesPackage.Ident("DataLoss")
+	Unauthenticated    = RpcCodesPackage.Ident("Unauthenticated")
 	CodeMethods        = []protogen.GoIdent{
 		OK,
 		Canceled,
@@ -148,11 +155,15 @@ var (
 		DataLoss,
 		Unauthenticated,
 	}
+)
 
-	Status = StatusPackage.Ident("Status")
-	From   = StatusPackage.Ident("From")
-
-	Option     = StatusPackage.Ident("Option")
-	Identifier = StatusPackage.Ident("Identifier")
-	Message    = StatusPackage.Ident("Message")
+var (
+	StatusPackage   = protogen.GoImportPath("github.com/go-leo/status")
+	NewIdent        = StatusPackage.Ident("New")
+	OptionIdent     = StatusPackage.Ident("Option")
+	IdentifierIdent = StatusPackage.Ident("Identifier")
+	HttpStatusIdent = StatusPackage.Ident("HttpStatus")
+	MessageIdent    = StatusPackage.Ident("Message")
+	StatusIdent     = StatusPackage.Ident("Status")
+	FromIdent       = StatusPackage.Ident("From")
 )

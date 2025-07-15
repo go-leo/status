@@ -5,12 +5,20 @@ option go_package = "github.com/go-leo/status/example/api/status/v1;status";
 import "leo/status/annotations.proto";
 
 enum Errors {
-  option (leo.status.default_rpc_code) = INTERNAL;
-  option (leo.status.default_http_code) = 500;
+  option (leo.status.default_rpc_status) = INTERNAL;
+  option (leo.status.default_http_status) = 500;
 
-  InvalidName = 0 [(leo.status.rpc_code) = INVALID_ARGUMENT, (leo.status.message) = "名称为空"];
+  ErrDefault = 0;
 
-  FileDownloadFailed = 1 [(leo.status.message) = "文件下载失败"];
+  ErrJustRpcStatus = 1 [ (leo.status.rpc_status) = INVALID_ARGUMENT ];
 
-  FileUploadFailed = 2;
+  ErrJustHttpStatus = 2 [ (leo.status.http_status) = 400 ];
+
+  ErrJustMessage = 3 [ (leo.status.message) = "just message" ];
+
+  ErrAllHave = 4 [
+    (leo.status.rpc_status) = INVALID_ARGUMENT,
+    (leo.status.http_status) = 401,
+    (leo.status.message) = "normal"
+  ];
 }

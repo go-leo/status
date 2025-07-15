@@ -1,67 +1,30 @@
 package status
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/go-leo/status/internal/statuspb"
 	"github.com/go-leo/status/internal/util"
-	"github.com/go-leo/status/proto/leo/status"
+	statuspb "github.com/go-leo/status/proto/leo/status"
+	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	httpstatus "google.golang.org/genproto/googleapis/rpc/http"
-	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 type Option func(st *sampleStatus)
 
-func newStatus(code codes.Code, opts ...Option) *sampleStatus {
-	statusCode := util.ToHttpStatusCode(code)
+func New(grpcStatus codes.Code, opts ...Option) Status {
+	httpStatus := util.ToHttpStatusCode(grpcStatus)
 	st := &sampleStatus{
-		err: &statuspb.Error{
-			GrpcStatus: &rpcstatus.Status{
-				Code:    int32(code),
-				Message: "",
-				Details: nil,
-			},
-			DetailInfo: &statuspb.DetailInfo{
-				Identifier: &statuspb.Identifier{
-					Value: fmt.Sprintf("%d-%d", code, statusCode),
-				},
-				ErrorInfo:           nil,
-				RetryInfo:           nil,
-				DebugInfo:           nil,
-				QuotaFailure:        nil,
-				PreconditionFailure: nil,
-				BadRequest:          nil,
-				RequestInfo:         nil,
-				ResourceInfo:        nil,
-				Help:                nil,
-				LocalizedMessage:    nil,
-				Header:              nil,
-				Extra:               nil,
-			},
-		},
-	}
-	for _, opt := range opts {
-		opt(st)
-	}
-	return st
-}
-
-func NewStatus(grpcStatus codes.Code, httpStatus int, opts ...Option) *sampleStatus {
-	st := &sampleStatus{
-		err: &statuspb.Error{
-			GrpcStatus: &rpcstatus.Status{Code: int32(grpcStatus)},
-			DetailInfo: &statuspb.DetailInfo{
-				Identifier: &statuspb.Identifier{Value: fmt.Sprintf("%d-%d", grpcStatus, httpStatus)},
-			},
+		st: &statuspb.Status{
+			Identifier: &statuspb.Identifier{Value: fmt.Sprintf("%d-%d", grpcStatus, httpStatus)},
+			RpcStatus:  code.Code(grpcStatus),
+			HttpStatus: &statuspb.HttpStatus{Value: int32(httpStatus)},
 		},
 	}
 	for _, opt := range opts {
@@ -75,7 +38,7 @@ func NewStatus(grpcStatus codes.Code, httpStatus int, opts ...Option) *sampleSta
 // both code and status are identical.
 func Identifier(id string) Option {
 	return func(st *sampleStatus) {
-		st.err.DetailInfo.Identifier = &statuspb.Identifier{
+		st.st.Identifier = &statuspb.Identifier{
 			Value: id,
 		}
 	}
@@ -84,23 +47,29 @@ func Identifier(id string) Option {
 // Message sets the message of the Status.
 func Message(format string, a ...any) Option {
 	return func(st *sampleStatus) {
-		st.err.GrpcStatus.Message = fmt.Sprintf(format, a...)
+		st.st.Message = &statuspb.Message{Value: fmt.Sprintf(format, a...)}
+	}
+}
+
+func HttpStatus(code int) Option {
+	return func(st *sampleStatus) {
+		st.st.HttpStatus = &statuspb.HttpStatus{Value: int32(code)}
 	}
 }
 
 // Headers sets the http header info.
 func Headers(header http.Header) Option {
 	return func(st *sampleStatus) {
-		if st.err.DetailInfo.Header == nil {
-			st.err.DetailInfo.Header = &statuspb.Header{}
+		if st.st.Details == nil {
+			st.st.Details = &statuspb.Details{}
+		}
+		if st.st.Details.Header == nil {
+			st.st.Details.Header = &statuspb.Header{}
 		}
 		for key, values := range header {
 			for _, value := range values {
-				item := &httpstatus.HttpHeader{
-					Key:   key,
-					Value: value,
-				}
-				st.err.DetailInfo.Header.Headers = append(st.err.DetailInfo.Header.Headers, item)
+				item := &httpstatus.HttpHeader{Key: key, Value: value}
+				st.st.Details.Header.Values = append(st.st.Details.Header.Values, item)
 			}
 		}
 	}
@@ -109,7 +78,10 @@ func Headers(header http.Header) Option {
 // ErrorInfo sets the error info.
 func ErrorInfo(reason string, domain string, metadata map[string]string) Option {
 	return func(st *sampleStatus) {
-		st.err.DetailInfo.ErrorInfo = &errdetails.ErrorInfo{
+		if st.st.Details == nil {
+			st.st.Details = &statuspb.Details{}
+		}
+		st.st.Details.ErrorInfo = &errdetails.ErrorInfo{
 			Reason:   reason,
 			Domain:   domain,
 			Metadata: metadata,
@@ -120,7 +92,10 @@ func ErrorInfo(reason string, domain string, metadata map[string]string) Option 
 // RetryInfo sets the retry info.
 func RetryInfo(retryDelay time.Duration) Option {
 	return func(st *sampleStatus) {
-		st.err.DetailInfo.RetryInfo = &errdetails.RetryInfo{
+		if st.st.Details == nil {
+			st.st.Details = &statuspb.Details{}
+		}
+		st.st.Details.RetryInfo = &errdetails.RetryInfo{
 			RetryDelay: durationpb.New(retryDelay),
 		}
 	}
@@ -129,7 +104,10 @@ func RetryInfo(retryDelay time.Duration) Option {
 // DebugInfo sets the debug info.
 func DebugInfo(stackEntries []string, detail string) Option {
 	return func(st *sampleStatus) {
-		st.err.DetailInfo.DebugInfo = &errdetails.DebugInfo{
+		if st.st.Details == nil {
+			st.st.Details = &statuspb.Details{}
+		}
+		st.st.Details.DebugInfo = &errdetails.DebugInfo{
 			StackEntries: stackEntries,
 			Detail:       detail,
 		}
@@ -139,7 +117,10 @@ func DebugInfo(stackEntries []string, detail string) Option {
 // QuotaFailure sets the quota failure info.
 func QuotaFailure(violations []*errdetails.QuotaFailure_Violation) Option {
 	return func(st *sampleStatus) {
-		st.err.DetailInfo.QuotaFailure = &errdetails.QuotaFailure{
+		if st.st.Details == nil {
+			st.st.Details = &statuspb.Details{}
+		}
+		st.st.Details.QuotaFailure = &errdetails.QuotaFailure{
 			Violations: violations,
 		}
 	}
@@ -148,7 +129,10 @@ func QuotaFailure(violations []*errdetails.QuotaFailure_Violation) Option {
 // PreconditionFailure sets the precondition failure info.
 func PreconditionFailure(violations []*errdetails.PreconditionFailure_Violation) Option {
 	return func(st *sampleStatus) {
-		st.err.DetailInfo.PreconditionFailure = &errdetails.PreconditionFailure{
+		if st.st.Details == nil {
+			st.st.Details = &statuspb.Details{}
+		}
+		st.st.Details.PreconditionFailure = &errdetails.PreconditionFailure{
 			Violations: violations,
 		}
 	}
@@ -157,7 +141,10 @@ func PreconditionFailure(violations []*errdetails.PreconditionFailure_Violation)
 // BadRequest sets the bad request info.
 func BadRequest(violations []*errdetails.BadRequest_FieldViolation) Option {
 	return func(st *sampleStatus) {
-		st.err.DetailInfo.BadRequest = &errdetails.BadRequest{
+		if st.st.Details == nil {
+			st.st.Details = &statuspb.Details{}
+		}
+		st.st.Details.BadRequest = &errdetails.BadRequest{
 			FieldViolations: violations,
 		}
 	}
@@ -166,7 +153,10 @@ func BadRequest(violations []*errdetails.BadRequest_FieldViolation) Option {
 // RequestInfo sets the request info.
 func RequestInfo(requestId string, servingData string) Option {
 	return func(st *sampleStatus) {
-		st.err.DetailInfo.RequestInfo = &errdetails.RequestInfo{
+		if st.st.Details == nil {
+			st.st.Details = &statuspb.Details{}
+		}
+		st.st.Details.RequestInfo = &errdetails.RequestInfo{
 			RequestId:   requestId,
 			ServingData: servingData,
 		}
@@ -176,7 +166,10 @@ func RequestInfo(requestId string, servingData string) Option {
 // ResourceInfo sets the resource info.
 func ResourceInfo(resourceType string, resourceName string, owner string, description string) Option {
 	return func(st *sampleStatus) {
-		st.err.DetailInfo.ResourceInfo = &errdetails.ResourceInfo{
+		if st.st.Details == nil {
+			st.st.Details = &statuspb.Details{}
+		}
+		st.st.Details.ResourceInfo = &errdetails.ResourceInfo{
 			ResourceType: resourceType,
 			ResourceName: resourceName,
 			Owner:        owner,
@@ -188,7 +181,10 @@ func ResourceInfo(resourceType string, resourceName string, owner string, descri
 // Help sets the help info.
 func Help(links []*errdetails.Help_Link) Option {
 	return func(st *sampleStatus) {
-		st.err.DetailInfo.Help = &errdetails.Help{
+		if st.st.Details == nil {
+			st.st.Details = &statuspb.Details{}
+		}
+		st.st.Details.Help = &errdetails.Help{
 			Links: links,
 		}
 	}
@@ -197,7 +193,10 @@ func Help(links []*errdetails.Help_Link) Option {
 // LocalizedMessage sets the localized message info.
 func LocalizedMessage(locale string, message string) Option {
 	return func(st *sampleStatus) {
-		st.err.DetailInfo.LocalizedMessage = &errdetails.LocalizedMessage{
+		if st.st.Details == nil {
+			st.st.Details = &statuspb.Details{}
+		}
+		st.st.Details.LocalizedMessage = &errdetails.LocalizedMessage{
 			Locale:  locale,
 			Message: message,
 		}
@@ -207,48 +206,13 @@ func LocalizedMessage(locale string, message string) Option {
 // Extra sets the extra info.
 func Extra(extra proto.Message) Option {
 	return func(st *sampleStatus) {
-		switch item := extra.(type) {
-		case *wrapperspb.StringValue:
-			Message(item.GetValue())(st)
-		case *httpstatus.HttpHeader:
-			if st.err.DetailInfo.Header == nil {
-				st.err.DetailInfo.Header = &statuspb.Header{}
-			}
-			st.err.DetailInfo.Header.Headers = append(st.err.DetailInfo.Header.Headers, item)
-		case *errdetails.ErrorInfo:
-			ErrorInfo(item.GetReason(), item.GetDomain(), item.GetMetadata())(st)
-		case *errdetails.RetryInfo:
-			RetryInfo(item.GetRetryDelay().AsDuration())(st)
-		case *errdetails.DebugInfo:
-			DebugInfo(item.GetStackEntries(), item.GetDetail())(st)
-		case *errdetails.QuotaFailure:
-			QuotaFailure(item.GetViolations())(st)
-		case *errdetails.PreconditionFailure:
-			PreconditionFailure(item.GetViolations())(st)
-		case *errdetails.BadRequest:
-			BadRequest(item.GetFieldViolations())(st)
-		case *errdetails.RequestInfo:
-			RequestInfo(item.GetRequestId(), item.GetServingData())(st)
-		case *errdetails.ResourceInfo:
-			ResourceInfo(item.GetResourceType(), item.GetResourceName(), item.GetOwner(), item.GetDescription())(st)
-		case *errdetails.Help:
-			Help(item.GetLinks())(st)
-		case *errdetails.LocalizedMessage:
-			LocalizedMessage(item.GetLocale(), item.GetMessage())(st)
-		case *httpstatus.HttpResponse:
-			panic(errors.New("status: unsupported HttpResponse"))
-		case *rpcstatus.Status:
-			panic(errors.New("status: unsupported Status"))
-		case *statuspb.DetailInfo:
-			panic(errors.New("status: unsupported DetailInfo"))
-		case *status.HttpBody:
-			panic(errors.New("status: unsupported HttpBody"))
-		default:
-			value, err := anypb.New(item)
-			if err != nil {
-				panic(err)
-			}
-			st.err.DetailInfo.Extra = value
+		if st.st.Details == nil {
+			st.st.Details = &statuspb.Details{}
 		}
+		value, err := anypb.New(extra)
+		if err != nil {
+			panic(err)
+		}
+		st.st.Details.Extra.Values = append(st.st.Details.Extra.Values, value)
 	}
 }

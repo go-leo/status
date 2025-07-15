@@ -6,14 +6,13 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-leo/status/internal/statuspb"
-	"github.com/go-leo/status/internal/util"
+	statuspb "github.com/go-leo/status/proto/leo/status"
 	"golang.org/x/exp/maps"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
-	status "google.golang.org/genproto/googleapis/rpc/status"
+	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type Status interface {
@@ -76,40 +75,37 @@ type Status interface {
 	LocalizedMessage() *errdetails.LocalizedMessage
 
 	// Extra returns additional detail from the Status
-	Extra() proto.Message
+	Extra() *statuspb.Extra
 }
 
 var _ Status = (*sampleStatus)(nil)
 
 type sampleStatus struct {
-	err *statuspb.Error
+	st *statuspb.Status
 }
 
 func (st *sampleStatus) Error() string {
-	return fmt.Sprintf("status: code = %s, status-code = %d, desc = %s", st.Code(), st.StatusCode(), st.Message())
+	return fmt.Sprintf("status: rpc-status = %s, http-status = %d, desc = %s", st.Code(), st.StatusCode(), st.Message())
 }
 
 func (st *sampleStatus) Identifier() string {
-	return st.err.GetDetailInfo().GetIdentifier().GetValue()
+	return st.st.GetIdentifier().GetValue()
 }
 
 func (st *sampleStatus) Code() codes.Code {
-	if st == nil || st.err == nil {
-		return codes.OK
-	}
-	return codes.Code(st.err.GetGrpcStatus().GetCode())
+	return codes.Code(st.st.GetRpcStatus())
 }
 
 func (st *sampleStatus) Message() string {
-	if st == nil || st.err == nil {
-		return ""
-	}
-	return st.err.GetGrpcStatus().GetMessage()
+	return st.st.GetMessage().GetValue()
 }
 
 func (st *sampleStatus) GRPCStatus() *grpcstatus.Status {
-	grpcStatus := proto.Clone(st.err.GetGrpcStatus()).(*status.Status)
-	grpcStatus.Details = statuspb.ToGrpcDetails(st.err.GetDetailInfo())
+	grpcStatus := &spb.Status{
+		Code:    int32(st.Code()),
+		Message: st.Message(),
+		Details: st.st.GrpcDetails(),
+	}
 	return grpcstatus.FromProto(grpcStatus)
 }
 
@@ -124,14 +120,14 @@ func (st *sampleStatus) Is(target error) bool {
 }
 
 func (st *sampleStatus) StatusCode() int {
-	return util.ToHttpStatusCode(st.Code())
+	return int(st.st.GetHttpStatus().GetValue())
 }
 
 func (st *sampleStatus) Headers() http.Header {
-	headers := st.err.GetDetailInfo().GetHeader().GetHeaders()
-	header := make(http.Header, len(headers))
-	keys := make(map[string]struct{}, len(headers))
-	for _, item := range headers {
+	values := st.st.GetDetails().GetHeader().GetValues()
+	header := make(http.Header, len(values))
+	keys := make(map[string]struct{}, len(values))
+	for _, item := range values {
 		header.Add(item.GetKey(), item.GetValue())
 		keys[item.GetKey()] = struct{}{}
 	}
@@ -140,57 +136,49 @@ func (st *sampleStatus) Headers() http.Header {
 }
 
 func (st *sampleStatus) MarshalJSON() ([]byte, error) {
-	return marshalHttpBody(st)
+	return protojson.Marshal(st.st)
 }
 
 func (st *sampleStatus) ErrorInfo() *errdetails.ErrorInfo {
-	return st.err.GetDetailInfo().GetErrorInfo()
+	return st.st.GetDetails().GetErrorInfo()
 }
 
 func (st *sampleStatus) RetryInfo() *errdetails.RetryInfo {
-	return st.err.GetDetailInfo().GetRetryInfo()
+	return st.st.GetDetails().GetRetryInfo()
 }
 
 func (st *sampleStatus) DebugInfo() *errdetails.DebugInfo {
-	return st.err.GetDetailInfo().GetDebugInfo()
+	return st.st.GetDetails().GetDebugInfo()
 }
 
 func (st *sampleStatus) QuotaFailure() *errdetails.QuotaFailure {
-	return st.err.GetDetailInfo().GetQuotaFailure()
+	return st.st.GetDetails().GetQuotaFailure()
 }
 
 func (st *sampleStatus) PreconditionFailure() *errdetails.PreconditionFailure {
-	return st.err.GetDetailInfo().GetPreconditionFailure()
+	return st.st.GetDetails().GetPreconditionFailure()
 }
 
 func (st *sampleStatus) BadRequest() *errdetails.BadRequest {
-	return st.err.GetDetailInfo().GetBadRequest()
+	return st.st.GetDetails().GetBadRequest()
 }
 
 func (st *sampleStatus) RequestInfo() *errdetails.RequestInfo {
-	return st.err.GetDetailInfo().GetRequestInfo()
+	return st.st.GetDetails().GetRequestInfo()
 }
 
 func (st *sampleStatus) ResourceInfo() *errdetails.ResourceInfo {
-	return st.err.GetDetailInfo().GetResourceInfo()
+	return st.st.GetDetails().GetResourceInfo()
 }
 
 func (st *sampleStatus) Help() *errdetails.Help {
-	return st.err.GetDetailInfo().GetHelp()
+	return st.st.GetDetails().GetHelp()
 }
 
 func (st *sampleStatus) LocalizedMessage() *errdetails.LocalizedMessage {
-	return st.err.GetDetailInfo().GetLocalizedMessage()
+	return st.st.GetDetails().GetLocalizedMessage()
 }
 
-func (st *sampleStatus) Extra() proto.Message {
-	detail := st.err.GetDetailInfo().GetExtra()
-	if detail == nil {
-		return nil
-	}
-	info, err := detail.UnmarshalNew()
-	if err != nil {
-		panic(err)
-	}
-	return info
+func (st *sampleStatus) Extra() *statuspb.Extra {
+	return st.st.GetDetails().GetExtra()
 }
