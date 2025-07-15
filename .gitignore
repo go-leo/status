@@ -2,3 +2,5 @@
 /main
 .vscode
 .DS_Store
+example/grpc/server/server
+example/grpc/client/client

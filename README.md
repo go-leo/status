@@ -1,66 +1,256 @@
-# Leo
-Leo 是一个基于 [go-kit](https://github.com/go-kit/kit) 的微服务工具，简化了基于go-kit开发的繁琐的工作。
+# Status
 
-Leo 提供一些列 proto 插件，可以生成基于 go-kit 的 HTTP 和 gRPC 的代码。
+status 是一个微服务常用的状态码管理工具，参考 google Status 规范设计。
 
-# Leo 的优点
-* 模块化：基于 Go-kit, 设计时考虑了模块化，允许开发人员根据具体的使用情况选择所需的组件。
-* 传输协议无关：它支持多种传输协议（HTTP、gRPC 等），使其在不同的通信需求中具有灵活性。
-* 服务发现：Leo 和 Go-kit 提供了内置的服务发现支持，这对于微服务架构至关重要。
-* 负载均衡：包含负载均衡机制，以便在多个服务实例之间分配请求。
-* 框架本身和业务代码保持一种低耦合的状态
-* 中间件支持：一套通用的`middleware`，使之与`HTTP`和`gRPC`等传输协议无关
-* 仪表化：它与监控和日志记录工具集成良好，提供对服务性能和健康状况的可见性。
-* 标准化：推广最佳实践和标准化，使得维护和扩展微服务变得更容易。
+# 错误代码
+下面是一个表格，其中包含google.rpc.Code中定义的所有gRPC错误代码及其原因的简短说明。
+<table>
+<thead>
+<tr><th>HTTP</th><th>RPC</th><th>描述</th></tr>
+</thead>
+<tbody>
+<tr><td>200</td><td><strong>OK</strong></td><td>没有错误</td></tr>
+<tr><td>400</td><td><strong>INVALID_ARGUMENT</strong></td><td>客户端指定了无效的参数。 检查错误消息和错误详细信息以获取更多信息。</td></tr>
+<tr><td>400</td><td><strong>FAILED_PRECONDITION</strong></td><td>请求不能在当前系统状态下执行，例如删除非空目录。</td></tr>
+<tr><td>400</td><td><strong>OUT_OF_RANGE</strong></td><td>客户端指定了无效的范围。</td></tr>
+<tr><td>401</td><td><strong>UNAUTHENTICATED</strong></td><td>由于遗失，无效或过期的OAuth令牌而导致请求未通过身份验证。</td></tr>
+<tr><td>403</td><td><strong>PERMISSION_DENIED</strong></td><td>客户端没有足够的权限。这可能是因为OAuth令牌没有正确的范围，客户端没有权限，或者客户端项目尚未启用API。</td></tr>
+<tr><td>404</td><td><strong>NOT_FOUND</strong></td><td>找不到指定的资源，或者该请求被未公开的原因（例如白名单）拒绝。</td></tr>
+<tr><td>409</td><td><strong>ABORTED</strong></td><td>并发冲突，例如读-修改-写冲突。</td></tr>
+<tr><td>409</td><td><strong>ALREADY_EXISTS</strong></td><td>客户端尝试创建的资源已存在。</td></tr>
+<tr><td>429</td><td><strong>RESOURCE_EXHAUSTED</strong></td><td>资源配额达到速率限制。 客户端应该查找google.rpc.QuotaFailure错误详细信息以获取更多信息。</td></tr>
+<tr><td>499</td><td><strong>CANCELLED</strong></td><td>客户端取消请求</td></tr>
+<tr><td>500</td><td><strong>DATA_LOSS</strong></td><td>不可恢复的数据丢失或数据损坏。 客户端应该向用户报告错误。</td></tr>
+<tr><td>500</td><td><strong>UNKNOWN</strong></td><td>未知的服务器错误。 通常是服务器错误。</td></tr>
+<tr><td>500</td><td><strong>INTERNAL</strong></td><td>内部服务错误。 通常是服务器错误。</td></tr>
+<tr><td>501</td><td><strong>NOT_IMPLEMENTED</strong></td><td>服务器未实现该API方法。</td></tr>
+<tr><td>503</td><td><strong>UNAVAILABLE</strong></td><td>暂停服务。通常是服务器已经关闭。</td></tr>
+<tr><td>504</td><td><strong>DEADLINE_EXCEEDED</strong></td><td>已超过请求期限。如果重复发生，请考虑降低请求的复杂性。</td></tr>
+</tbody>
+</table>
 
-# 功能组件
-* [code generator](docs/generator.md)
-  * 生成gRPC、Http、config、status代码。
-  * 生成一套符合微服务和DDD思想的代码结构。
-* [服务发现](docs/sd.md)
-  * 扩展go-kit的服务发现功能，支持多种注册中心(consul、nacos)
-* [流量染色](docs/stain.md)
-  * 支持流量染色
-* [限流](docs/ratelimit.md)
-  * SlideWindow 滑动窗口限流
-  * LeakyBucket 漏桶限流
-  * TokenBucket 令牌桶限流
-  * Redis Redis分布式限流
-  * BBR 基于BBR的限流
-* [熔断](docs/circuitbreaker.md)
-  * google sre 熔断算法
-  * hystrix 熔断器
-  * sony go breaker
-* [负载均衡](docs/loadbalance.md)
-  * 扩展go-kit的负载均衡功能，支持多种负载均衡算法(随机、轮询、一致性哈希)
-* [超时](docs/timeout.md)
-  * 除了gRPC天然支持超时，HTTP也支持同样支持
-* [重试](docs/retry.md)
-  * 支持客户端失败重试。
-* [配置](docs/config.md)
-  * 支持从多种配置源(consul、nacos、环境变量、文件)获取配置
-  * 支持监听配置变化，支持配置热加载
-  * protobuf 定义配置格式，严格控制配置格式
-* [状态](docs/status.md)
-  * 基于 googleapi 错误规范实现，使用简单的协议无关错误模型，这使我们能够在不同的API，API协议（如gRPC或HTTP）以及错误上下文（例如，异步，批处理或工作流错误）中获得一致的体验。
-* [元数据](docs/metadata.md)
-  * Leo提供了一个元数据支持，支持跨通信方式传递元数据。
-* [健康检查](docs/health.md)
-  * gRPC和HTTP都支持健康检查
-  * 支持自定义其他系统（比如redis、mysql等）的健康检查
-* [日志](docs/log.md)
-  * go-kit 的日志功能
-* [监控](docs/opentelemetry.md)
-  * 使用 OpenTelemetry 提供的监控方案
-* [链路追踪](docs/opentelemetry.md)
-  * 使用 OpenTelemetry 提供的链路追踪方案
-* [参数校验](docs/validator.md)
-  * 支持请求参数的自动校验(github.com/envoyproxy/protoc-gen-validate)
-  * 避免手动检查代码
-  * 支持自定义校验器
-* [Panic恢复](docs/recovery.md)
-  * 避免程序崩溃
-* [JWT Auth](docs/jwt.md)
-* [Basic Auth](docs/basic.md)
-* [中间件](docs/middleware.md)
-  * 除了内置限流、校验、日志、监控等中间件，go-kit的所有中间件都支持
+要处理错误，您可以检查返回状态码的描述，并相应地修改您的请求。
+
+# Install
+```
+go get github.com/go-leo/status/cmd/proto-gen-go-len@latest
+```
+
+# 定义错误
+```protobuf
+syntax = "proto3";
+package leo.example.status.errors;
+option go_package = "github.com/go-leo/status/example/api/status/v1;status";
+
+import "leo/status/annotations.proto";
+
+enum Errors {
+  option (leo.status.default_rpc_status) = INTERNAL;
+  option (leo.status.default_http_status) = 500;
+
+  ErrDefault = 0;
+
+  ErrJustRpcStatus = 1 [ (leo.status.rpc_status) = INVALID_ARGUMENT ];
+
+  ErrJustHttpStatus = 2 [ (leo.status.http_status) = 400 ];
+
+  ErrJustMessage = 3 [ (leo.status.message) = "just message" ];
+
+  ErrAllHave = 4 [
+    (leo.status.rpc_status) = INVALID_ARGUMENT,
+    (leo.status.http_status) = 401,
+    (leo.status.message) = "normal"
+  ];
+}
+```
+注意:
+* 枚举类型的`default_rpc_status`和`default_http_status`需要配置，否则代码生成器跳过此枚举类型
+* 如果枚举值指定了`rpc_status`(`http_status`), 则使用指定的 `rpc_status`(`http_status`)，否则使用`default_rpc_status`(`default_http_status`)
+
+# 代码生成命令
+```shell
+protoc \
+--proto_path=. \
+--proto_path=../proto/ \
+--proto_path=../third_party \
+--go_out=. \
+--go_opt=paths=source_relative \
+--status_out=. \
+--status_opt=paths=source_relative \
+*/*.proto
+```
+注意事项:
+* [proto/leo/status](proto/leo/status)需要根据实际目录按需放置
+
+# 生成后的代码
+```go
+// Code generated by protoc-gen-status. DO NOT EDIT.
+
+package status
+
+import (
+	status "github.com/go-leo/status"
+	codes "google.golang.org/grpc/codes"
+)
+
+var clean_ErrErrDefault = ErrErrDefault()
+
+func ErrErrDefault(opts ...status.Option) status.Status {
+	return status.New(codes.Internal, append([]status.Option{status.HttpStatus(500), status.Identifier("Errors_ErrDefault"), status.Message("")}, opts...)...)
+}
+
+func IsErrDefault(err error) (status.Status, bool) {
+	st, ok := status.From(err)
+	if !ok {
+		return st, false
+	}
+	return st, clean_ErrErrDefault.Is(st)
+}
+
+var clean_ErrErrJustRpcStatus = ErrErrJustRpcStatus()
+
+func ErrErrJustRpcStatus(opts ...status.Option) status.Status {
+	return status.New(codes.InvalidArgument, append([]status.Option{status.HttpStatus(500), status.Identifier("Errors_ErrJustRpcStatus"), status.Message("")}, opts...)...)
+}
+
+func IsErrJustRpcStatus(err error) (status.Status, bool) {
+	st, ok := status.From(err)
+	if !ok {
+		return st, false
+	}
+	return st, clean_ErrErrJustRpcStatus.Is(st)
+}
+
+var clean_ErrErrJustHttpStatus = ErrErrJustHttpStatus()
+
+func ErrErrJustHttpStatus(opts ...status.Option) status.Status {
+	return status.New(codes.Internal, append([]status.Option{status.HttpStatus(400), status.Identifier("Errors_ErrJustHttpStatus"), status.Message("")}, opts...)...)
+}
+
+func IsErrJustHttpStatus(err error) (status.Status, bool) {
+	st, ok := status.From(err)
+	if !ok {
+		return st, false
+	}
+	return st, clean_ErrErrJustHttpStatus.Is(st)
+}
+
+var clean_ErrErrJustMessage = ErrErrJustMessage()
+
+func ErrErrJustMessage(opts ...status.Option) status.Status {
+	return status.New(codes.Internal, append([]status.Option{status.HttpStatus(500), status.Identifier("Errors_ErrJustMessage"), status.Message("just message")}, opts...)...)
+}
+
+func IsErrJustMessage(err error) (status.Status, bool) {
+	st, ok := status.From(err)
+	if !ok {
+		return st, false
+	}
+	return st, clean_ErrErrJustMessage.Is(st)
+}
+
+var clean_ErrErrAllHave = ErrErrAllHave()
+
+func ErrErrAllHave(opts ...status.Option) status.Status {
+	return status.New(codes.InvalidArgument, append([]status.Option{status.HttpStatus(401), status.Identifier("Errors_ErrAllHave"), status.Message("normal")}, opts...)...)
+}
+
+func IsErrAllHave(err error) (status.Status, bool) {
+	st, ok := status.From(err)
+	if !ok {
+		return st, false
+	}
+	return st, clean_ErrErrAllHave.Is(st)
+}
+
+```
+注意事项:
+* `ErrInvalidPassword`会创建并返回一个`status.Status`
+* `IsInvalidPassword`会判断传入的`error`是否是`ErrInvalidPassword`错误，在没有修改`Identifier`情况下是相同的
+
+# gRPC中使用
+## Server
+```go
+type server struct {
+	helloworldpb.UnimplementedGreeterServer
+}
+
+func (s *server) SayHello(_ context.Context, in *helloworldpb.HelloRequest) (*helloworldpb.HelloReply, error) {
+	log.Printf("Received: %v", in.GetName())
+	switch in.GetName() {
+	case "Default":
+		return nil, statuspb.ErrDefault(status.ErrorInfo("reason", "domain", map[string]string{"key": "value"}))
+	case "JustRpcStatus":
+		return nil, statuspb.ErrJustRpcStatus(status.RetryInfo(time.Second))
+	case "JustHttpStatus":
+		return nil, statuspb.ErrJustHttpStatus(status.DebugInfo([]string{"stack entry"}, "stack entry"))
+	case "JustMessage":
+		return nil, statuspb.ErrJustMessage(status.QuotaFailure([]*errdetails.QuotaFailure_Violation{{Subject: "subject", Description: "description"}}))
+	case "AllHave":
+		return nil, statuspb.ErrAllHave(status.PreconditionFailure([]*errdetails.PreconditionFailure_Violation{{Subject: "subject", Description: "description"}}))
+	case "Custom":
+		return nil, status.New(
+			codes.Unknown,
+			status.Message("custom message"),
+			status.BadRequest([]*errdetails.BadRequest_FieldViolation{{Field: "field", Description: "description"}}),
+			status.RequestInfo("request_id", "serving_data"),
+			status.ResourceInfo("resource_type", "resource_name", "owner", "description"),
+			status.Help([]*errdetails.Help_Link{{Url: "url", Description: "description"}}),
+			status.LocalizedMessage("locale", "message"),
+		)
+	}
+	return &helloworldpb.HelloReply{Message: "Hello " + in.GetName()}, nil
+}
+```
+## 运行Server
+```
+ go run ./main.go 
+```
+## Client
+```go
+	r, err := c.SayHello(ctx, &helloworldpb.HelloRequest{Name: *name})
+	if err != nil {
+		var st status.Status
+		var ok bool
+		if st, ok = statuspb.IsDefault(err); ok {
+			jsonData, _ := st.MarshalJSON()
+			log.Fatalf("default error: %v, json: %s", st, jsonData)
+		} else if st, ok = statuspb.IsJustRpcStatus(err); ok {
+			jsonData, _ := st.MarshalJSON()
+			log.Fatalf("just rpc status error: %v, json: %s", st, jsonData)
+		} else if st, ok = statuspb.IsJustHttpStatus(err); ok {
+			jsonData, _ := st.MarshalJSON()
+			log.Fatalf("just http status error: %v, json: %s", st, jsonData)
+		} else if st, ok = statuspb.IsJustMessage(err); ok {
+			jsonData, _ := st.MarshalJSON()
+			log.Fatalf("just message error: %v, json: %s", st, jsonData)
+		} else if st, ok = statuspb.IsAllHave(err); ok {
+			jsonData, _ := st.MarshalJSON()
+			log.Fatalf("all have error: %v, json: %s", st, jsonData)
+		} else {
+			jsonData, _ := st.MarshalJSON()
+			log.Fatalf("custom error: %v, json: %s", st, jsonData)
+		}
+	}
+	log.Printf("Greeting: %s", r.GetMessage())
+```
+## 运行Client
+```
+go run ./main.go -name Default
+go run ./main.go -name JustRpcStatus
+go run ./main.go -name JustHttpStatus
+go run ./main.go -name JustMessage
+go run ./main.go -name AllHave
+go run ./main.go -name Custom
+```
+完成gRPC例子见[grpc](example/grpc)
+
+# HTTP(在gors)中使用
+
+
+# Reference
+
+* [https://github.com/googleapis/googleapis/blob/master/google/rpc/status.proto](https://github.com/googleapis/googleapis/blob/master/google/rpc/status.proto)
+* [https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto](https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto)
+* [https://github.com/googleapis/googleapis/blob/master/google/rpc/error_details.proto](https://github.com/googleapis/googleapis/blob/master/google/rpc/error_details.proto)
+* [https://cloud.google.com/apis/design/errors](https://cloud.google.com/apis/design/errors)

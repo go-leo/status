@@ -8,17 +8,17 @@ enum Errors {
   option (leo.status.default_rpc_status) = INTERNAL;
   option (leo.status.default_http_status) = 500;
 
-  ErrDefault = 0;
+  Default = 0;
 
-  ErrJustRpcStatus = 1 [ (leo.status.rpc_status) = INVALID_ARGUMENT ];
+  JustRpcStatus = 1 [ (leo.status.rpc_status) = INVALID_ARGUMENT ];
 
-  ErrJustHttpStatus = 2 [ (leo.status.http_status) = 400 ];
+  JustHttpStatus = 2 [ (leo.status.http_status) = 400 ];
 
-  ErrJustMessage = 3 [ (leo.status.message) = "just message" ];
+  JustMessage = 3 [ (leo.status.message) = "just message" ];
 
-  ErrAllHave = 4 [
+  AllHave = 4 [
     (leo.status.rpc_status) = INVALID_ARGUMENT,
     (leo.status.http_status) = 401,
-    (leo.status.message) = "normal"
+    (leo.status.message) = "all have"
   ];
 }

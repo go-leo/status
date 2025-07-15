@@ -136,7 +136,16 @@ func (st *sampleStatus) Headers() http.Header {
 }
 
 func (st *sampleStatus) MarshalJSON() ([]byte, error) {
-	return protojson.Marshal(st.st)
+	httpBody := &statuspb.Status{
+		Identifier: st.st.GetIdentifier(),
+		RpcStatus:  st.st.GetRpcStatus(),
+		HttpStatus: st.st.GetHttpStatus(),
+		Details:    st.st.GetDetails(),
+	}
+	if st.st.GetDetails() != nil && st.st.GetDetails().GetHeader() != nil {
+		httpBody.Details.Header = nil
+	}
+	return protojson.Marshal(httpBody)
 }
 
 func (st *sampleStatus) ErrorInfo() *errdetails.ErrorInfo {

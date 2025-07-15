@@ -1,6 +1,8 @@
 package status
 
 import (
+	"encoding/json"
+
 	errdetails "google.golang.org/genproto/googleapis/rpc/errdetails"
 	anypb "google.golang.org/protobuf/types/known/anypb"
 )
@@ -275,4 +277,44 @@ func FromDetails(details []*anypb.Any) *Status {
 		}
 	}
 	return st
+}
+
+func (x *Identifier) MarshalJSON() ([]byte, error) {
+	return json.Marshal(x.GetValue())
+}
+
+func (x *Identifier) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &x.Value)
+}
+
+func (x *HttpStatus) MarshalJSON() ([]byte, error) {
+	return json.Marshal(x.GetValue())
+}
+
+func (x *HttpStatus) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &x.Value)
+}
+
+func (x *Message) MarshalJSON() ([]byte, error) {
+	return json.Marshal(x.GetValue())
+}
+
+func (x *Message) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &x.Value)
+}
+
+func (x *Header) MarshalJSON() ([]byte, error) {
+	return json.Marshal(x.GetValues())
+}
+
+func (x *Header) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &x.Values)
+}
+
+func (x *Extra) MarshalJSON() ([]byte, error) {
+	return json.Marshal(x.GetValues())
+}
+
+func (x *Extra) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &x.Values)
 }
