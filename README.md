@@ -1,6 +1,7 @@
 # Status
 
 status 是一个微服务常用的状态码管理工具，参考 google Status 规范设计。
+可以在Http和GRPC服务中使用。
 
 # 错误代码
 下面是一个表格，其中包含google.rpc.Code中定义的所有gRPC错误代码及其原因的简短说明。
