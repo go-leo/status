@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/go-leo/status/cmd/protoc-gen-status/gen"
 	"google.golang.org/protobuf/compiler/protogen"
@@ -10,11 +12,9 @@ import (
 )
 
 func main() {
-	showVersion := flag.Bool("version", false, "print the version and exit")
-	flag.Parse()
-	if *showVersion {
-		fmt.Printf("protoc-gen-go-leo %v\n", "v0.0.1")
-		return
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		fmt.Fprintf(os.Stdout, "%v %v\n", filepath.Base(os.Args[0]), "v0.0.2")
+		os.Exit(0)
 	}
 
 	var flags flag.FlagSet
