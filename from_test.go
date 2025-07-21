@@ -96,6 +96,7 @@ func TestFrom(t *testing.T) {
 	t.Run("HttpResponse", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-Leo-Status-Key", "")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"rpcStatus":"OK"}`))
 		}))
@@ -160,7 +161,7 @@ func TestFromRpcStatus(t *testing.T) {
 		Code:    int32(codes.OK),
 		Message: "test message",
 	}
-	result := fromRpcStatus(input)
+	result := FromRpcStatus(input)
 	if result.Code() != codes.OK {
 		t.Errorf("Expected code=OK, got %v", result.Code())
 	}
@@ -170,7 +171,7 @@ func TestFromRpcStatus(t *testing.T) {
 
 	// Test without message
 	input = &rpcstatus.Status{Code: int32(codes.NotFound)}
-	result = fromRpcStatus(input)
+	result = FromRpcStatus(input)
 	if result.Code() != codes.NotFound {
 		t.Errorf("Expected code=NotFound, got %v", result.Code())
 	}
@@ -186,7 +187,7 @@ func TestFromHttpResponse(t *testing.T) {
 			StatusCode: http.StatusNotFound,
 			Body:       io.NopCloser(strings.NewReader(`{"rpcStatus":"NOT_FOUND"}`)),
 		}
-		result, ok := fromHttpResponse(resp)
+		result, ok := FromHttpResponse(resp)
 		if !ok {
 			t.Error("Expected ok=true")
 		}
@@ -209,7 +210,7 @@ func TestFromHttpResponse(t *testing.T) {
 				"header2": []string{"value2"},
 			},
 		}
-		result, ok := fromHttpResponse(resp)
+		result, ok := FromHttpResponse(resp)
 		if !ok {
 			t.Error("Expected ok=true")
 		}
@@ -225,7 +226,7 @@ func TestFromHttpResponse(t *testing.T) {
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader("invalid json")),
 		}
-		result, ok := fromHttpResponse(resp)
+		result, ok := FromHttpResponse(resp)
 		if !ok {
 			t.Error("Expected ok=true")
 		}
@@ -239,7 +240,7 @@ func TestFromError(t *testing.T) {
 	// Test context errors
 	t.Run("ContextErrors", func(t *testing.T) {
 		// DeadlineExceeded
-		result, ok := fromError(context.DeadlineExceeded)
+		result, ok := FromError(context.DeadlineExceeded)
 		if !ok {
 			t.Error("Expected ok=true for context.DeadlineExceeded")
 		}
@@ -248,7 +249,7 @@ func TestFromError(t *testing.T) {
 		}
 
 		// Canceled
-		result, ok = fromError(context.Canceled)
+		result, ok = FromError(context.Canceled)
 		if !ok {
 			t.Error("Expected ok=true for context.Canceled")
 		}
@@ -260,7 +261,7 @@ func TestFromError(t *testing.T) {
 	// Test URL error
 	t.Run("URLError", func(t *testing.T) {
 		err := &url.Error{Op: "GET", URL: "http://test", Err: errors.New("test")}
-		result, ok := fromError(err)
+		result, ok := FromError(err)
 		if !ok {
 			t.Error("Expected ok=true for url.Error")
 		}
@@ -272,7 +273,7 @@ func TestFromError(t *testing.T) {
 	// Test sampleStatus error
 	t.Run("SampleStatusError", func(t *testing.T) {
 		err := &sampleStatus{st: &statuspb.Status{RpcStatus: code.Code_INTERNAL}}
-		result, ok := fromError(err)
+		result, ok := FromError(err)
 		if !ok {
 			t.Error("Expected ok=true for sampleStatus error")
 		}
@@ -284,7 +285,7 @@ func TestFromError(t *testing.T) {
 	// Test gRPC error
 	t.Run("GRPCError", func(t *testing.T) {
 		err := grpcstatus.New(codes.NotFound, "not found").Err()
-		result, ok := fromError(err)
+		result, ok := FromError(err)
 		if !ok {
 			t.Error("Expected ok=true for gRPC error")
 		}
@@ -296,7 +297,7 @@ func TestFromError(t *testing.T) {
 	// Test unknown error
 	t.Run("UnknownError", func(t *testing.T) {
 		err := errors.New("some error")
-		result, ok := fromError(err)
+		result, ok := FromError(err)
 		if ok {
 			t.Error("Expected ok=false for unknown error")
 		}

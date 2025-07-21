@@ -37,41 +37,56 @@ func From(obj any) (Status, bool) {
 	case *statuspb.Status:
 		return &sampleStatus{st: st}, true
 	case *rpcstatus.Status:
-		return fromRpcStatus(st), true
+		return FromRpcStatus(st), true
 	case *grpcstatus.Status:
-		return fromRpcStatus(st.Proto()), true
+		return FromRpcStatus(st.Proto()), true
 	case interface{ GRPCStatus() *grpcstatus.Status }:
-		return fromRpcStatus(st.GRPCStatus().Proto()), true
+		return FromRpcStatus(st.GRPCStatus().Proto()), true
 	case *http.Response:
-		return fromHttpResponse(st)
+		return FromHttpResponse(st)
 	case error:
-		return fromError(st)
+		return FromError(st)
 	default:
 		return New(codes.Unknown, Message("%+v", obj)), false
 	}
 }
 
-// fromRpcStatus converts a gRPC status proto (*rpcstatus.Status) to Status interface.
+// FromGrpcStatus converts a gRPC status object to a local Status type.
+// This is a convenience wrapper around FromRpcStatus that handles the proto conversion.
+//
+// Parameters:
+//
+//	grpcStatus: *grpcstatus.Status - The gRPC status object to convert
+//
+// Returns:
+//
+//	Status - The converted local status representation
+func FromGrpcStatus(grpcStatus *grpcstatus.Status) Status {
+	// Simply delegates to FromRpcStatus after extracting the proto message
+	return FromRpcStatus(grpcStatus.Proto())
+}
+
+// FromRpcStatus converts a gRPC status proto (*rpcstatus.Status) to Status interface.
 // It preserves:
 // - Status code (converted to code.Code)
 // - Message (if present)
 // - All original details (via statuspb.FromDetails)
-func fromRpcStatus(grpcProto *rpcstatus.Status) Status {
-	st := statuspb.FromGrpcDetails(grpcProto.Details)
-	st.RpcStatus = code.Code(grpcProto.Code)
-	if len(grpcProto.GetMessage()) > 0 {
-		st.Message = grpcProto.GetMessage()
+func FromRpcStatus(rpcStatus *rpcstatus.Status) Status {
+	st := statuspb.FromGrpcDetails(rpcStatus.Details)
+	st.RpcStatus = code.Code(rpcStatus.Code)
+	if len(rpcStatus.GetMessage()) > 0 {
+		st.Message = rpcStatus.GetMessage()
 	}
 	return &sampleStatus{st: st}
 }
 
-// fromHttpResponse converts an HTTP response to Status interface.
+// FromHttpResponse converts an HTTP response to Status interface.
 // It:
 // 1. Attempts to parse response body as statuspb.Status (JSON)
 // 2. Sets HTTP status code from response
 // 3. Extracts headers marked with special key (kKey) and stores them in Details
 // Returns the converted Status and true (always succeeds)
-func fromHttpResponse(resp *http.Response) (Status, bool) {
+func FromHttpResponse(resp *http.Response) (Status, bool) {
 	statusKeys, ok := resp.Header[kKey]
 	if !ok {
 		return nil, false
@@ -97,7 +112,7 @@ func fromHttpResponse(resp *http.Response) (Status, bool) {
 	return &sampleStatus{st: st}, true
 }
 
-// fromError converts various error types to Status interface.
+// FromError converts various error types to Status interface.
 // Special cases handled:
 // - context.DeadlineExceeded → codes.DeadlineExceeded
 // - context.Canceled → codes.Canceled
@@ -106,7 +121,7 @@ func fromHttpResponse(resp *http.Response) (Status, bool) {
 // - gRPC errors (via grpcstatus.FromError)
 // Other errors become codes.Unknown status.
 // Returns the Status and a boolean indicating if it was a recognized error type.
-func fromError(err error) (Status, bool) {
+func FromError(err error) (Status, bool) {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return New(codes.DeadlineExceeded, Message(err.Error())), true
 	}
@@ -121,7 +136,7 @@ func fromError(err error) (Status, bool) {
 	}
 	grpcStatus, ok := grpcstatus.FromError(err)
 	if ok {
-		return fromRpcStatus(grpcStatus.Proto()), true
+		return FromRpcStatus(grpcStatus.Proto()), true
 	}
 	return New(codes.Unknown, Message(err.Error())), false
 }
