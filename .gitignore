@@ -6,3 +6,5 @@ example/grpc/server/server
 example/grpc/client/client
 example/http/client/client
 example/http/server/server
+example/mix/server/server
+example/mix/client/client

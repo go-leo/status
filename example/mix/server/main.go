@@ -17,6 +17,7 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
@@ -25,10 +26,16 @@ var (
 )
 
 func main() {
+	flag.Parse()
 	eg, _ := errgroup.WithContext(context.Background())
 	eg.Go(func() error {
 		// http bff
-		client := helloworldpb.NewGreeterClient()
+		conn, err := grpc.NewClient(fmt.Sprintf("localhost:%d", *grpc_port), grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatalf("did not connect: %v", err)
+		}
+		defer conn.Close()
+		client := helloworldpb.NewGreeterClient(conn)
 		mux := http.NewServeMux()
 		mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
 			content, _ := io.ReadAll(r.Body)
@@ -44,10 +51,6 @@ func main() {
 			st, ok := status.FromError(err)
 			if !ok {
 				_, _ = w.Write([]byte(err.Error()))
-				return
-			}
-			if st == nil {
-				_, _ = w.Write([]byte("Hello " + name))
 				return
 			}
 			var contentType string
