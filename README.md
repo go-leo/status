@@ -34,7 +34,7 @@ status 是一个微服务常用的状态码管理工具，参考 google Status �
 
 # Install
 ```
-go get github.com/go-leo/status/cmd/proto-gen-go-len@latest
+go get github.com/go-leo/status/cmd/proto-gen-status@latest
 ```
 
 # 定义错误
@@ -49,18 +49,18 @@ enum Errors {
   option (leo.status.default_rpc_status) = INTERNAL;
   option (leo.status.default_http_status) = 500;
 
-  ErrDefault = 0;
+  Default = 0;
 
-  ErrJustRpcStatus = 1 [ (leo.status.rpc_status) = INVALID_ARGUMENT ];
+  JustRpcStatus = 1 [ (leo.status.rpc_status) = INVALID_ARGUMENT ];
 
-  ErrJustHttpStatus = 2 [ (leo.status.http_status) = 400 ];
+  JustHttpStatus = 2 [ (leo.status.http_status) = 400 ];
 
-  ErrJustMessage = 3 [ (leo.status.message) = "just message" ];
+  JustMessage = 3 [ (leo.status.message) = "just message" ];
 
-  ErrAllHave = 4 [
+  AllHave = 4 [
     (leo.status.rpc_status) = INVALID_ARGUMENT,
     (leo.status.http_status) = 401,
-    (leo.status.message) = "normal"
+    (leo.status.message) = "all have"
   ];
 }
 ```
@@ -94,74 +94,74 @@ import (
 	codes "google.golang.org/grpc/codes"
 )
 
-var clean_ErrErrDefault = ErrErrDefault()
+var clean_ErrDefault = ErrDefault()
 
-func ErrErrDefault(opts ...status.Option) status.Status {
-	return status.New(codes.Internal, append([]status.Option{status.HttpStatus(500), status.Identifier("Errors_ErrDefault"), status.Message("")}, opts...)...)
+func ErrDefault(opts ...status.Option) status.Status {
+	return status.New(codes.Internal, append([]status.Option{status.HttpStatus(500), status.Identifier("Errors_Default"), status.Message("")}, opts...)...)
 }
 
-func IsErrDefault(err error) (status.Status, bool) {
+func IsDefault(err error) (status.Status, bool) {
 	st, ok := status.From(err)
 	if !ok {
 		return st, false
 	}
-	return st, clean_ErrErrDefault.Is(st)
+	return st, clean_ErrDefault.Is(st)
 }
 
-var clean_ErrErrJustRpcStatus = ErrErrJustRpcStatus()
+var clean_ErrJustRpcStatus = ErrJustRpcStatus()
 
-func ErrErrJustRpcStatus(opts ...status.Option) status.Status {
-	return status.New(codes.InvalidArgument, append([]status.Option{status.HttpStatus(500), status.Identifier("Errors_ErrJustRpcStatus"), status.Message("")}, opts...)...)
+func ErrJustRpcStatus(opts ...status.Option) status.Status {
+	return status.New(codes.InvalidArgument, append([]status.Option{status.HttpStatus(500), status.Identifier("Errors_JustRpcStatus"), status.Message("")}, opts...)...)
 }
 
-func IsErrJustRpcStatus(err error) (status.Status, bool) {
+func IsJustRpcStatus(err error) (status.Status, bool) {
 	st, ok := status.From(err)
 	if !ok {
 		return st, false
 	}
-	return st, clean_ErrErrJustRpcStatus.Is(st)
+	return st, clean_ErrJustRpcStatus.Is(st)
 }
 
-var clean_ErrErrJustHttpStatus = ErrErrJustHttpStatus()
+var clean_ErrJustHttpStatus = ErrJustHttpStatus()
 
-func ErrErrJustHttpStatus(opts ...status.Option) status.Status {
-	return status.New(codes.Internal, append([]status.Option{status.HttpStatus(400), status.Identifier("Errors_ErrJustHttpStatus"), status.Message("")}, opts...)...)
+func ErrJustHttpStatus(opts ...status.Option) status.Status {
+	return status.New(codes.Internal, append([]status.Option{status.HttpStatus(400), status.Identifier("Errors_JustHttpStatus"), status.Message("")}, opts...)...)
 }
 
-func IsErrJustHttpStatus(err error) (status.Status, bool) {
+func IsJustHttpStatus(err error) (status.Status, bool) {
 	st, ok := status.From(err)
 	if !ok {
 		return st, false
 	}
-	return st, clean_ErrErrJustHttpStatus.Is(st)
+	return st, clean_ErrJustHttpStatus.Is(st)
 }
 
-var clean_ErrErrJustMessage = ErrErrJustMessage()
+var clean_ErrJustMessage = ErrJustMessage()
 
-func ErrErrJustMessage(opts ...status.Option) status.Status {
-	return status.New(codes.Internal, append([]status.Option{status.HttpStatus(500), status.Identifier("Errors_ErrJustMessage"), status.Message("just message")}, opts...)...)
+func ErrJustMessage(opts ...status.Option) status.Status {
+	return status.New(codes.Internal, append([]status.Option{status.HttpStatus(500), status.Identifier("Errors_JustMessage"), status.Message("just message")}, opts...)...)
 }
 
-func IsErrJustMessage(err error) (status.Status, bool) {
+func IsJustMessage(err error) (status.Status, bool) {
 	st, ok := status.From(err)
 	if !ok {
 		return st, false
 	}
-	return st, clean_ErrErrJustMessage.Is(st)
+	return st, clean_ErrJustMessage.Is(st)
 }
 
-var clean_ErrErrAllHave = ErrErrAllHave()
+var clean_ErrAllHave = ErrAllHave()
 
-func ErrErrAllHave(opts ...status.Option) status.Status {
-	return status.New(codes.InvalidArgument, append([]status.Option{status.HttpStatus(401), status.Identifier("Errors_ErrAllHave"), status.Message("normal")}, opts...)...)
+func ErrAllHave(opts ...status.Option) status.Status {
+	return status.New(codes.InvalidArgument, append([]status.Option{status.HttpStatus(401), status.Identifier("Errors_AllHave"), status.Message("all have")}, opts...)...)
 }
 
-func IsErrAllHave(err error) (status.Status, bool) {
+func IsAllHave(err error) (status.Status, bool) {
 	st, ok := status.From(err)
 	if !ok {
 		return st, false
 	}
-	return st, clean_ErrErrAllHave.Is(st)
+	return st, clean_ErrAllHave.Is(st)
 }
 
 ```
