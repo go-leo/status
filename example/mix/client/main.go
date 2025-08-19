@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	addr = flag.String("addr", "localhost:60061", "the address to connect to")
+	addr = flag.String("addr", "localhost:60062", "the address to connect to")
 	name = flag.String("name", "", "Name to greet")
 )
 

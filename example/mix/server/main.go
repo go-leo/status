@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	http_port = flag.Int("http_port", 60061, "The http server port")
-	grpc_port = flag.Int("grpc_port", 50051, "The grpc server port")
+	http_port = flag.Int("http_port", 60062, "The http server port")
+	grpc_port = flag.Int("grpc_port", 50052, "The grpc server port")
 )
 
 func main() {
