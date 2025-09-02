@@ -9,6 +9,7 @@ import (
 	statuspb "github.com/go-leo/status/proto/leo/status"
 	"golang.org/x/exp/maps"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	rpchttp "google.golang.org/genproto/googleapis/rpc/http"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
@@ -143,6 +144,14 @@ func (st *sampleStatus) StatusCode() int {
 	return int(st.st.GetHttpStatus())
 }
 
+// SetStatusCode sets the HTTP status code
+func (st *sampleStatus) SetStatusCode(code int) {
+	if st.st == nil {
+		st.st = &statuspb.Status{}
+	}
+	st.st.HttpStatus = int32(code)
+}
+
 // Headers returns the HTTP headers including special status headers
 // Automatically adds the kKey header containing all header keys
 func (st *sampleStatus) Headers() http.Header {
@@ -157,12 +166,30 @@ func (st *sampleStatus) Headers() http.Header {
 	return header
 }
 
+func (st *sampleStatus) SetHeaders(headers http.Header) {
+	if st.st == nil {
+		st.st = &statuspb.Status{}
+	}
+	if st.st.GetDetails() == nil {
+		st.st.Details = &statuspb.Details{}
+	}
+	if st.st.GetDetails().GetHeader() == nil {
+		st.st.Details.Header = &statuspb.Header{}
+	}
+	for key := range headers {
+		for _, value := range headers.Values(key) {
+			st.st.Details.Header.Values = append(st.st.Details.Header.Values, &rpchttp.HttpHeader{Key: key, Value: value})
+		}
+	}
+}
+
 // MarshalJSON provides JSON serialization of the status
 // Omits http status and header details from serialization to avoid redundancy
 func (st *sampleStatus) MarshalJSON() ([]byte, error) {
-	httpBody := &statuspb.Status{
+	stpb := &statuspb.Status{
 		Identifier: st.st.GetIdentifier(),
 		RpcStatus:  st.st.GetRpcStatus(),
+		Message:    st.st.GetMessage(),
 		Details: &statuspb.Details{
 			ErrorInfo:           st.st.GetDetails().GetErrorInfo(),
 			RetryInfo:           st.st.GetDetails().GetRetryInfo(),
@@ -176,9 +203,12 @@ func (st *sampleStatus) MarshalJSON() ([]byte, error) {
 			LocalizedMessage:    st.st.GetDetails().GetLocalizedMessage(),
 			Extra:               st.st.GetDetails().GetExtra(),
 		},
-		Message: st.st.GetMessage(),
 	}
-	return protojson.Marshal(httpBody)
+	return protojson.Marshal(stpb)
+}
+
+func (st *sampleStatus) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &st.st)
 }
 
 // ErrorInfo returns the embedded ErrorInfo details if present
